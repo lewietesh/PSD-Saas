@@ -1,0 +1,36 @@
+<!-- emails/templates/contact_autoreply.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thank You for Contacting {{ company_name }}</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f8fafc; color: #0f172a; }
+        .container { max-width: 600px; margin: 0 auto; background: #fff; box-shadow: 0 4px 16px rgba(15,23,42,0.07); border-radius: 8px; }
+        .header { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: #fff; padding: 32px 24px; text-align: center; border-radius: 8px 8px 0 0; }
+        .body { padding: 32px 24px; }
+        .footer { background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 20px; text-align: center; color: #64748b; font-size: 14px; border-radius: 0 0 8px 8px; }
+        .cta { display: inline-block; margin: 24px 0 0 0; background: #3b82f6; color: #fff; text-decoration: none; padding: 12px 28px; border-radius: 6px; font-weight: 600; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div style="font-size: 28px; font-weight: 700;">{{ company_name }}</div>
+            <div style="font-size: 15px; opacity: 0.9;">Thank you for reaching out!</div>
+        </div>
+        <div class="body">
+            <p style="font-size: 18px; font-weight: 500; margin-bottom: 18px;">Hi{{ sender_name|default:' there' }},</p>
+            <p>We’ve received your message and our team will review it shortly. We aim to respond within <strong>1 business day</strong>.</p>
+            <p style="margin: 18px 0; color: #475569;">We appreciate your interest in our services and look forward to providing you with a quality experience.</p>
+            <a href="{{ company_website }}" class="cta">Explore Our Work</a>
+            <p style="margin-top: 24px; font-size: 15px; color: #64748b;">If your inquiry is urgent, please call us at <strong>{{ company_phone }}</strong>.</p>
+            <p style="margin-top: 24px; font-weight: 500;">Best regards,<br>The {{ company_name }} Team</p>
+        </div>
+        <div class="footer">
+            <p>{{ company_email }} | {{ company_website }}</p>
+        </div>
+    </div>
+</body>
+</html>

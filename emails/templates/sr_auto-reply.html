@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Service Request Confirmation - {{ company_name }}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f8fafc;
+            color: #0f172a;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            box-shadow: 0 10px 25px rgba(15, 23, 42, 0.1);
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: #f8fafc;
+            padding: 40px 30px;
+            text-align: center;
+        }
+        
+        .logo {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        
+        .tagline {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        
+        .body {
+            padding: 40px 30px;
+        }
+        
+        .greeting {
+            font-size: 18px;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+        
+        .summary-box {
+            background-color: #f1f5f9;
+            border-left: 4px solid #3b82f6;
+            padding: 20px;
+            margin: 25px 0;
+            border-radius: 0 8px 8px 0;
+        }
+        
+        .summary-title {
+            color: #1e293b;
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+        
+        .info-row {
+            display: flex;
+            margin-bottom: 8px;
+        }
+        
+        .info-label {
+            font-weight: 600;
+            color: #1e293b;
+            width: 120px;
+            flex-shrink: 0;
+        }
+        
+        .info-value {
+            color: #475569;
+        }
+        
+        .cta-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+            color: #ffffff;
+            text-decoration: none;
+            padding: 14px 28px;
+            border-radius: 8px;
+            font-weight: 600;
+            margin: 20px 0;
+            box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
+        }
+        
+        .next-steps {
+            background-color: #ecfdf5;
+            border: 1px solid #a7f3d0;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 25px 0;
+        }
+        
+        .next-steps h3 {
+            color: #065f46;
+            font-size: 16px;
+            margin-bottom: 12px;
+        }
+        
+        .next-steps ul {
+            color: #047857;
+            padding-left: 20px;
+        }
+        
+        .footer {
+            background-color: #f8fafc;
+            border-top: 1px solid #e2e8f0;
+            padding: 30px;
+            text-align: center;
+            color: #64748b;
+            font-size: 14px;
+        }
+        
+        .footer a {
+            color: #3b82f6;
+            text-decoration: none;
+            margin: 0 10px;
+        }
+        
+        @media (max-width: 600px) {
+            .header, .body, .footer { padding: 25px 20px; }
+            .info-row { flex-direction: column; }
+            .info-label { width: auto; margin-bottom: 4px; }
+            .cta-button { display: block; text-align: center; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">{{ company_name }}</div>
+            <div class="tagline">Professional Web Development & Digital Solutions</div>
+        </div>
+        
+        <div class="body">
+            <div class="greeting">Hi {{ client_name }},</div>
+            
+            <p>Thank you for reaching out! We've received your service request and are excited about the possibility of working with you.</p>
+            
+            <div class="summary-box">
+                <div class="summary-title">📋 Request Summary</div>
+                <div class="info-row">
+                    <div class="info-label">Service:</div>
+                    <div class="info-value">{{ service_name }}</div>
+                </div>
+                {% if pricing_tier %}
+                <div class="info-row">
+                    <div class="info-label">Package:</div>
+                    <div class="info-value">{{ pricing_tier }}</div>
+                </div>
+                {% endif %}
+                {% if budget %}
+                <div class="info-row">
+                    <div class="info-label">Budget:</div>
+                    <div class="info-value">{{ budget }}</div>
+                </div>
+                {% endif %}
+                {% if timeline %}
+                <div class="info-row">
+                    <div class="info-label">Timeline:</div>
+                    <div class="info-value">{{ timeline }}</div>
+                </div>
+                {% endif %}
+                <div class="info-row">
+                    <div class="info-label">Request ID:</div>
+                    <div class="info-value">#{{ request_id }}</div>
+                </div>
+                <div class="info-row">
+                    <div class="info-label">Submitted:</div>
+                    <div class="info-value">{{ submitted_date }}</div>
+                </div>
+            </div>
+            
+            {% if project_description %}
+            <div style="background-color: #f8fafc; padding: 15px; border-radius: 6px; border-left: 3px solid #3b82f6; margin: 20px 0;">
+                <strong>Your Project Vision:</strong><br>
+                <em>"{{ project_description }}"</em>
+            </div>
+            {% endif %}
+            
+            <div class="next-steps">
+                <h3>🚀 What Happens Next</h3>
+                <ul>
+                    <li>Our team will review your requirements within {{ response_time }}</li>
+                    <li>We'll prepare a detailed proposal tailored to your needs</li>
+                    <li>Schedule a discovery call to discuss your project</li>
+                    <li>Provide you with a clear timeline and roadmap</li>
+                </ul>
+            </div>
+            
+            <div style="text-align: center; margin: 30px 0;">
+                <a href="{{ company_website }}/client/signup" class="cta-button">
+                    Create Your Client Account
+                </a>
+            </div>
+            
+            <p>Have questions? Simply reply to this email or contact us at {{ support_email }}.</p>
+            
+            <p style="margin-top: 20px; font-weight: 500;">
+                Best regards,<br>
+                The {{ company_name }} Team
+            </p>
+        </div>
+        
+        <div class="footer">
+            <p><strong>{{ company_name }}</strong></p>
+            <div style="margin: 15px 0;">
+                <a href="{{ company_website }}">Website</a>
+                <a href="mailto:{{ support_email }}">Support</a>
+                <a href="{{ company_website }}/portfolio">Portfolio</a>
+            </div>
+            <p>{{ company_email }} | {{ company_phone }}</p>
+        </div>
+    </div>
+</body>
+</html>

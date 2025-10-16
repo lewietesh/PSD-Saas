@@ -1,0 +1,62 @@
+# Byte‑compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+virtualenv/
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# client ID Oauth 2.0 
+# 67030173001-9kil2f9td6u41ef28jvn4pbm57uo7s0s.apps.googleusercontent.com
+
+# Django stuff:
+*.log
+local_settings.py         # if you keep per‑machine settings here
+db.sqlite3
+db.sqlite3-journal
+
+# Media and static files (if you collect them locally)
+media/
+staticfiles/
+
+# Environment variables / secrets
+.env
+.env.local
+.env.*                    # e.g. .env.local, .env.production
+credentials.json
+secret_key.txt
+
+# VS Code
+.vscode/
+
+# PyCharm
+.idea/
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+ehthumbs.db
+
+
+#I should have added this for pdf
+.pdf
+
