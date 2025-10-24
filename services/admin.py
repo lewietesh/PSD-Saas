@@ -4,6 +4,7 @@ from django.utils.html import format_html
 from django.urls import reverse
 from django.utils.safestring import mark_safe
 from django.db.models import Count, Avg
+from accounts.admin import BaseAdminPermissions
 from .models import (
     Service, ServiceCategory, ServicePricingTier, ServiceFeature, PricingTierFeature,
     ServiceProcessStep, ServiceDeliverable, ServiceTool, 
@@ -12,7 +13,7 @@ from .models import (
 
 
 @admin.register(ServiceFeature)
-class ServiceFeatureAdmin(admin.ModelAdmin):
+class ServiceFeatureAdmin(BaseAdminPermissions):
     """
     Admin interface for ServiceFeature model
     """
@@ -102,7 +103,7 @@ class ServiceFAQInline(admin.TabularInline):
 
 
 @admin.register(ServiceCategory)
-class ServiceCategoryAdmin(admin.ModelAdmin):
+class ServiceCategoryAdmin(BaseAdminPermissions):
     """
     Admin interface for ServiceCategory model
     """
@@ -176,7 +177,7 @@ class ServiceCategoryAdmin(admin.ModelAdmin):
 
 
 @admin.register(Service)
-class ServiceAdmin(admin.ModelAdmin):
+class ServiceAdmin(BaseAdminPermissions):
     """
     Admin interface for Service model
     """
@@ -352,7 +353,7 @@ class ServiceAdmin(admin.ModelAdmin):
 
 
 @admin.register(ServicePricingTier)
-class ServicePricingTierAdmin(admin.ModelAdmin):
+class ServicePricingTierAdmin(BaseAdminPermissions):
     """
     Admin interface for ServicePricingTier model
     """
@@ -402,7 +403,7 @@ class ServicePricingTierAdmin(admin.ModelAdmin):
 
 
 @admin.register(ServiceProcessStep)
-class ServiceProcessStepAdmin(admin.ModelAdmin):
+class ServiceProcessStepAdmin(BaseAdminPermissions):
     """
     Admin interface for ServiceProcessStep model
     """
@@ -435,7 +436,7 @@ class ServiceProcessStepAdmin(admin.ModelAdmin):
 
 
 @admin.register(ServiceDeliverable)
-class ServiceDeliverableAdmin(admin.ModelAdmin):
+class ServiceDeliverableAdmin(BaseAdminPermissions):
     """
     Admin interface for ServiceDeliverable model
     """
@@ -467,7 +468,7 @@ class ServiceDeliverableAdmin(admin.ModelAdmin):
 
 
 @admin.register(ServiceTool)
-class ServiceToolAdmin(admin.ModelAdmin):
+class ServiceToolAdmin(BaseAdminPermissions):
     """
     Admin interface for ServiceTool model
     """
@@ -509,7 +510,7 @@ class ServiceToolAdmin(admin.ModelAdmin):
 
 
 @admin.register(ServicePopularUseCase)
-class ServicePopularUsecaseAdmin(admin.ModelAdmin):
+class ServicePopularUsecaseAdmin(BaseAdminPermissions):
     """
     Admin interface for ServicePopularUsecase model
     """
@@ -540,7 +541,7 @@ class ServicePopularUsecaseAdmin(admin.ModelAdmin):
 
 
 @admin.register(ServiceFAQ)
-class ServiceFAQAdmin(admin.ModelAdmin):
+class ServiceFAQAdmin(BaseAdminPermissions):
     """
     Admin interface for ServiceFAQ model
     """

@@ -7,10 +7,11 @@ from django.db.models import Count
 from django.db import models
 from django import forms
 from .models import Tag, BlogPost, BlogComment, BlogPostTag
+from accounts.admin import BaseAdminPermissions
 
 
 @admin.register(Tag)
-class TagAdmin(admin.ModelAdmin):
+class TagAdmin(BaseAdminPermissions):
     """
     Admin interface for Tag model
     """
@@ -69,7 +70,7 @@ class BlogCommentInline(admin.TabularInline):
 
 
 @admin.register(BlogPost)
-class BlogPostAdmin(admin.ModelAdmin):
+class BlogPostAdmin(BaseAdminPermissions):
     """
     Admin interface for BlogPost model
     """
@@ -240,7 +241,7 @@ class CommentTypeFilter(admin.SimpleListFilter):
 
 
 @admin.register(BlogComment)
-class BlogCommentAdmin(admin.ModelAdmin):
+class BlogCommentAdmin(BaseAdminPermissions):
     """
     Admin interface for BlogComment model
     """

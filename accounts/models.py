@@ -48,8 +48,8 @@ class User(AbstractBaseUser, PermissionsMixin):
     """
     
     ROLE_CHOICES = [
-        ('developer', 'Developer'),
         ('admin', 'Admin'),
+        ('partner', 'Partner'),
         ('client', 'Client'),
     ]
     
@@ -134,11 +134,16 @@ class User(AbstractBaseUser, PermissionsMixin):
         return not self.is_social_login and self.has_usable_password()
     
     def save(self, *args, **kwargs):
-        """Override save to set staff status based on role"""
-        if self.role in ['developer', 'admin']:
+        """Override save to set staff status and superuser based on role"""
+        if self.role == 'admin':
             self.is_staff = True
+            self.is_superuser = True
+        elif self.role == 'partner':
+            self.is_staff = True
+            self.is_superuser = False
         else:
             self.is_staff = False
+            self.is_superuser = False
         super().save(*args, **kwargs)
 
 
@@ -320,9 +325,9 @@ class Partner(models.Model):
         return f"{self.user.full_name or self.user.email} Partner Profile"
 
     def save(self, *args, **kwargs):
-        # Ensure linked user has admin privileges
-        if self.user.role != 'admin':
-            self.user.role = 'admin'
+        # Ensure linked user has partner privileges
+        if self.user.role != 'partner':
+            self.user.role = 'partner'
         if not self.user.is_staff:
             self.user.is_staff = True
         self.user.save(update_fields=['role', 'is_staff'])

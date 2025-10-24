@@ -5,13 +5,14 @@ from django.urls import reverse
 from django.http import HttpResponseRedirect
 from django.contrib import messages
 from django.contrib.auth import get_user_model
+from accounts.admin import BaseAdminPermissions
 from .models import ServiceRequest, Order, Testimonial, ContactMessage, Notification, Payment
 
 User = get_user_model()
 
 # Admin for ServiceRequest with file preview/download and conversion to order
 @admin.register(ServiceRequest)
-class ServiceRequestAdmin(admin.ModelAdmin):
+class ServiceRequestAdmin(BaseAdminPermissions):
     list_display = (
         'id', 'service', 'pricing_tier', 'name', 'email', 'status', 'created_at', 'attachment_link', 'order_status'
     )
@@ -83,7 +84,7 @@ class ServiceRequestAdmin(admin.ModelAdmin):
     mark_as_rejected.short_description = "Mark as rejected"
 
 @admin.register(Order)
-class OrderAdmin(admin.ModelAdmin):
+class OrderAdmin(BaseAdminPermissions):
     list_display = ('id', 'client', 'service', 'product', 'status', 'payment_status', 'total_amount', 'attachment_count', 'work_result_count', 'date_created')
     list_filter = ('status', 'payment_status', 'currency', 'date_created')
     search_fields = ('id', 'client__email', 'service__name', 'product__name')
@@ -205,7 +206,7 @@ class OrderAdmin(admin.ModelAdmin):
 
 
 @admin.register(Testimonial)
-class TestimonialAdmin(admin.ModelAdmin):
+class TestimonialAdmin(BaseAdminPermissions):
     list_display = ('id', 'client', 'approved', 'featured', 'rating', 'date_created')
     list_filter = ('approved', 'featured', 'rating')
     search_fields = ('client__email', 'content')
@@ -213,7 +214,7 @@ class TestimonialAdmin(admin.ModelAdmin):
 
 
 @admin.register(ContactMessage)
-class ContactMessageAdmin(admin.ModelAdmin):
+class ContactMessageAdmin(BaseAdminPermissions):
     list_display = ('id', 'name', 'email', 'subject', 'priority', 'source', 'is_read', 'replied', 'date_created')
     list_filter = ('priority', 'source', 'is_read', 'replied', 'date_created')
     search_fields = ('name', 'email', 'subject', 'message')
@@ -221,7 +222,7 @@ class ContactMessageAdmin(admin.ModelAdmin):
 
 
 @admin.register(Notification)
-class NotificationAdmin(admin.ModelAdmin):
+class NotificationAdmin(BaseAdminPermissions):
     list_display = ('id', 'user', 'type', 'title', 'priority', 'is_read', 'date_created')
     list_filter = ('type', 'priority', 'is_read')
     search_fields = ('title', 'message', 'user__email')
@@ -229,7 +230,7 @@ class NotificationAdmin(admin.ModelAdmin):
 
 
 @admin.register(Payment)
-class PaymentAdmin(admin.ModelAdmin):
+class PaymentAdmin(BaseAdminPermissions):
     list_display = ('id', 'order', 'amount', 'currency', 'method', 'status', 'date_created')
     list_filter = ('method', 'status', 'currency')
     search_fields = ('order__id', 'transaction_id', 'order__client__email')

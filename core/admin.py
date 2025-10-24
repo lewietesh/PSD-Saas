@@ -9,10 +9,11 @@ from .models import (
     WorkExperience, AboutStats, WhyChooseUs, Roadmap,
     SupportTicket, SupportAttachment
 )
+from accounts.admin import BaseAdminPermissions
 
 # NewsletterSubscription admin
 @admin.register(NewsletterSubscription)
-class NewsletterSubscriptionAdmin(admin.ModelAdmin):
+class NewsletterSubscriptionAdmin(BaseAdminPermissions):
     list_display = ('email', 'date_subscribed')
     search_fields = ('email',)
     list_filter = ('date_subscribed',)
@@ -60,7 +61,7 @@ class ContactInfoAdminForm(forms.ModelForm):
 
 # Admin for ContactInfo with social links preview and enhanced form
 @admin.register(ContactInfo)
-class ContactInfoAdmin(admin.ModelAdmin):
+class ContactInfoAdmin(BaseAdminPermissions):
     form = ContactInfoAdminForm
     list_display = ('brand_name', 'email', 'phone', 'location', 'social_links_preview', 'date_created', 'date_updated')
     search_fields = ('brand_name', 'email', 'phone', 'location')
@@ -85,7 +86,7 @@ class ContactInfoAdmin(admin.ModelAdmin):
 
 # Work Experience Admin
 @admin.register(WorkExperience)
-class WorkExperienceAdmin(admin.ModelAdmin):
+class WorkExperienceAdmin(BaseAdminPermissions):
     list_display = [
         'company_name', 'job_title', 'duration_display', 'industry',
         'is_current', 'is_featured', 'display_order'
@@ -131,7 +132,7 @@ class WorkExperienceAdmin(admin.ModelAdmin):
 
 # About Stats Admin
 @admin.register(AboutStats)
-class AboutStatsAdmin(admin.ModelAdmin):
+class AboutStatsAdmin(BaseAdminPermissions):
     list_display = ['stat_name', 'stat_value', 'stat_description_preview', 'icon_name', 'is_active', 'display_order']
     list_filter = ['is_active', 'date_created']
     search_fields = ['stat_name', 'stat_value', 'stat_description']
@@ -158,7 +159,7 @@ class AboutStatsAdmin(admin.ModelAdmin):
 
 # Why Choose Us Admin
 @admin.register(WhyChooseUs)
-class WhyChooseUsAdmin(admin.ModelAdmin):
+class WhyChooseUsAdmin(BaseAdminPermissions):
     list_display = ['reason_title', 'reason_description_preview', 'icon_name', 'is_active', 'display_order']
     list_filter = ['is_active', 'date_created']
     search_fields = ['reason_title', 'reason_description']
@@ -185,7 +186,7 @@ class WhyChooseUsAdmin(admin.ModelAdmin):
 
 # Roadmap Admin
 @admin.register(Roadmap)
-class RoadmapAdmin(admin.ModelAdmin):
+class RoadmapAdmin(BaseAdminPermissions):
     list_display = [
         'milestone_title', 'milestone_description_preview', 'target_date', 
         'is_completed', 'completion_date', 'is_active', 'display_order'
@@ -225,7 +226,7 @@ class RoadmapAdmin(admin.ModelAdmin):
     deactivate_milestones.short_description = "Deactivate selected milestones"
 
 @admin.register(HeroSection)
-class HeroSectionAdmin(admin.ModelAdmin):
+class HeroSectionAdmin(BaseAdminPermissions):
     """
     Admin interface for HeroSection model
     """
@@ -325,7 +326,7 @@ class HeroSectionAdmin(admin.ModelAdmin):
         super().save_model(request, obj, form, change)
 
 @admin.register(AboutSection)
-class AboutSectionAdmin(admin.ModelAdmin):
+class AboutSectionAdmin(BaseAdminPermissions):
     """
     Admin interface for AboutSection model
     """
@@ -412,7 +413,7 @@ class SupportAttachmentInline(admin.TabularInline):
 
 
 @admin.register(SupportTicket)
-class SupportTicketAdmin(admin.ModelAdmin):
+class SupportTicketAdmin(BaseAdminPermissions):
     list_display = ('id', 'subject', 'user', 'priority', 'status', 'created_at', 'has_reply')
     list_filter = ('status', 'priority', 'created_at')
     search_fields = ('subject', 'user__email', 'user__first_name', 'user__last_name')
@@ -447,7 +448,7 @@ class SupportTicketAdmin(admin.ModelAdmin):
 
 
 @admin.register(SupportAttachment)
-class SupportAttachmentAdmin(admin.ModelAdmin):
+class SupportAttachmentAdmin(BaseAdminPermissions):
     list_display = ('id', 'ticket', 'original_filename', 'file_size', 'uploaded_at', 'is_image')
     list_filter = ('uploaded_at',)
     search_fields = ('ticket__subject', 'original_filename')

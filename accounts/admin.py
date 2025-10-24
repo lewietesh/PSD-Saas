@@ -16,10 +16,30 @@ class CustomUserCreationForm(UserCreationForm):
         fields = ('email', 'first_name', 'last_name', 'role', 'affiliate_code')
     
     def __init__(self, *args, **kwargs):
-        super().__init__()
+        super().__init__(*args, **kwargs)
         # Remove username field since we use email
         if 'username' in self.fields:
             del self.fields['username']
+    
+    def save(self, commit=True):
+        """Save user with properly hashed password"""
+        user = super().save(commit=False)
+        user.set_password(self.cleaned_data["password1"])
+        
+        # Set is_staff and is_superuser based on role
+        if user.role == 'admin':
+            user.is_staff = True
+            user.is_superuser = True
+        elif user.role == 'partner':
+            user.is_staff = True
+            user.is_superuser = False
+        else:
+            user.is_staff = False
+            user.is_superuser = False
+            
+        if commit:
+            user.save()
+        return user
 
 
 class CustomUserChangeForm(UserChangeForm):
@@ -28,12 +48,64 @@ class CustomUserChangeForm(UserChangeForm):
     class Meta:
         model = User
         fields = '__all__'
+
+
+# Base Admin Mixin for all models
+class BaseAdminPermissions(admin.ModelAdmin):
+    """
+    Base admin class with common permission patterns for all models.
+    All admin classes should inherit from this to ensure Partners have access.
+    """
     
-    def __init__(self, *args, **kwargs):
-        super().__init__()
-        # Remove username field since we use email
-        if 'username' in self.fields:
-            del self.fields['username']
+    def has_module_permission(self, request):
+        """Check if user has permission to access this admin module"""
+        if not request.user.is_authenticated:
+            return False
+        if request.user.is_superuser:
+            return True
+        elif hasattr(request.user, 'role') and request.user.role in ['admin', 'partner']:
+            return True
+        return False
+    
+    def has_view_permission(self, request, obj=None):
+        """Allow partners to view objects"""
+        if not request.user.is_authenticated:
+            return False
+        if request.user.is_superuser:
+            return True
+        elif hasattr(request.user, 'role') and request.user.role in ['admin', 'partner']:
+            return True
+        return False
+    
+    def has_add_permission(self, request):
+        """Allow partners to add objects"""
+        if not request.user.is_authenticated:
+            return False
+        if request.user.is_superuser:
+            return True
+        elif hasattr(request.user, 'role') and request.user.role in ['admin', 'partner']:
+            return True
+        return False
+    
+    def has_change_permission(self, request, obj=None):
+        """Allow partners to change objects"""
+        if not request.user.is_authenticated:
+            return False
+        if request.user.is_superuser:
+            return True
+        elif hasattr(request.user, 'role') and request.user.role in ['admin', 'partner']:
+            return True
+        return False
+    
+    def has_delete_permission(self, request, obj=None):
+        """Allow partners to delete objects"""
+        if not request.user.is_authenticated:
+            return False
+        if request.user.is_superuser:
+            return True
+        elif hasattr(request.user, 'role') and request.user.role in ['admin', 'partner']:
+            return True
+        return False
 
 
 class ClientProfileInline(admin.StackedInline):
@@ -249,8 +321,8 @@ class UserAdmin(BaseUserAdmin):
             return queryset
         elif hasattr(request.user, 'role') and request.user.role == 'admin':
             return queryset
-        elif hasattr(request.user, 'role') and request.user.role == 'developer':
-            # Developers can see all users but not superusers
+        elif hasattr(request.user, 'role') and request.user.role == 'partner':
+            # Partners can see all users but not superusers
             return queryset.filter(is_superuser=False)
         else:
             # Clients can only see themselves
@@ -262,7 +334,7 @@ class UserAdmin(BaseUserAdmin):
             return False
         if request.user.is_superuser:
             return True
-        elif hasattr(request.user, 'role') and request.user.role in ['admin', 'developer']:
+        elif hasattr(request.user, 'role') and request.user.role in ['admin', 'partner']:
             return True
         return False
     
@@ -274,8 +346,8 @@ class UserAdmin(BaseUserAdmin):
             return True
         elif hasattr(request.user, 'role') and request.user.role == 'admin':
             return True
-        elif hasattr(request.user, 'role') and request.user.role == 'developer':
-            # Developers can edit non-superusers
+        elif hasattr(request.user, 'role') and request.user.role == 'partner':
+            # Partners can edit non-superusers
             if obj and obj.is_superuser:
                 return False
             return True
@@ -295,8 +367,8 @@ class UserAdmin(BaseUserAdmin):
             if obj and obj.is_superuser:
                 return False
             return True
-        elif hasattr(request.user, 'role') and request.user.role == 'developer':
-            # Developers can only delete clients
+        elif hasattr(request.user, 'role') and request.user.role == 'partner':
+            # Partners can only delete clients
             if obj and hasattr(obj, 'role') and obj.role == 'client':
                 return True
             return False
@@ -310,8 +382,8 @@ class UserAdmin(BaseUserAdmin):
             return readonly_fields
         
         if not request.user.is_superuser:
-            if hasattr(request.user, 'role') and request.user.role == 'developer':
-                # Developers can't change admin/superuser permissions
+            if hasattr(request.user, 'role') and request.user.role == 'partner':
+                # Partners can't change admin/superuser permissions
                 if obj and ((hasattr(obj, 'role') and obj.role in ['admin']) or obj.is_superuser):
                     readonly_fields.extend(['role', 'is_staff', 'is_superuser'])
             elif hasattr(request.user, 'role') and request.user.role == 'admin':
@@ -327,15 +399,20 @@ class UserAdmin(BaseUserAdmin):
         """Custom save logic with permission enforcement"""
         if not change:  # New user
             # Ensure proper role assignment
-            if obj.role in ['developer', 'admin']:
+            if obj.role == 'admin':
                 obj.is_staff = True
+                obj.is_superuser = True
+            elif obj.role == 'partner':
+                obj.is_staff = True
+                obj.is_superuser = False
             else:
                 obj.is_staff = False
+                obj.is_superuser = False
         
         # Prevent privilege escalation
         if not request.user.is_superuser:
-            if hasattr(request.user, 'role') and request.user.role == 'developer':
-                # Developers can't create admins or superusers
+            if hasattr(request.user, 'role') and request.user.role == 'partner':
+                # Partners can't create admins or superusers
                 if hasattr(obj, 'role') and obj.role == 'admin' or obj.is_superuser:
                     raise PermissionDenied("You don't have permission to create admin users.")
             elif not hasattr(request.user, 'role') or request.user.role != 'admin':
@@ -347,7 +424,7 @@ class UserAdmin(BaseUserAdmin):
 
 
 @admin.register(ClientProfile)
-class ClientProfileAdmin(admin.ModelAdmin):
+class ClientProfileAdmin(BaseAdminPermissions):
     """Client profile admin with business focus"""
     
     list_display = [
@@ -406,7 +483,7 @@ class ClientProfileAdmin(admin.ModelAdmin):
         if not request.user.is_authenticated:
             return queryset.none()
         
-        if request.user.is_superuser or (hasattr(request.user, 'role') and request.user.role in ['admin', 'developer']):
+        if request.user.is_superuser or (hasattr(request.user, 'role') and request.user.role in ['admin', 'partner']):
             return queryset
         elif hasattr(request.user, 'role') and request.user.role == 'client':
             # Clients can only see their own profile
@@ -422,7 +499,7 @@ class ClientProfileAdmin(admin.ModelAdmin):
         """Control who can change client profiles"""
         if not request.user.is_authenticated:
             return False
-        if request.user.is_superuser or (hasattr(request.user, 'role') and request.user.role in ['admin', 'developer']):
+        if request.user.is_superuser or (hasattr(request.user, 'role') and request.user.role in ['admin', 'partner']):
             return True
         elif obj and hasattr(request.user, 'role') and request.user.role == 'client':
             # Clients can only edit their own profile
@@ -458,9 +535,9 @@ admin.site.site_title = 'Portfolio API Admin'
 admin.site.index_title = 'Welcome to Portfolio API Administration'
 
 
-# Additional admin customizations
+# Additional admin customizations  
 class AdminPermissionMixin:
-    """Mixin for common admin permission patterns"""
+    """Mixin for common admin permission patterns (deprecated - use BaseAdminPermissions)"""
     
     def has_module_permission(self, request):
         """Check if user has permission to access this admin module"""
@@ -468,7 +545,7 @@ class AdminPermissionMixin:
             return False
         if request.user.is_superuser:
             return True
-        elif hasattr(request.user, 'role') and request.user.role in ['admin', 'developer']:
+        elif hasattr(request.user, 'role') and request.user.role in ['admin', 'partner']:
             return True
         return False
 
@@ -479,7 +556,7 @@ ClientProfileAdmin.__bases__ = (AdminPermissionMixin, admin.ModelAdmin)
 
 
 @admin.register(Partner)
-class PartnerAdmin(admin.ModelAdmin):
+class PartnerAdmin(BaseAdminPermissions):
     """Standalone admin for partner profiles."""
 
     form = PartnerAdminForm

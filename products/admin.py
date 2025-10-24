@@ -4,6 +4,7 @@ from django.utils.html import format_html
 from django.urls import reverse
 from django.utils.safestring import mark_safe
 from django.db.models import Count, Avg, Sum
+from accounts.admin import BaseAdminPermissions
 from .models import (
     Product, ProductGalleryImage, ProductReview, ProductPurchase, 
     ProductTechnology, ProductTag, ProductUpdate
@@ -76,7 +77,7 @@ class ProductReviewInline(admin.TabularInline):
 
 
 @admin.register(Product)
-class ProductAdmin(admin.ModelAdmin):
+class ProductAdmin(BaseAdminPermissions):
     """
     Admin interface for Product model
     """
@@ -250,7 +251,7 @@ class ProductAdmin(admin.ModelAdmin):
 
 
 @admin.register(ProductReview)
-class ProductReviewAdmin(admin.ModelAdmin):
+class ProductReviewAdmin(BaseAdminPermissions):
     """
     Admin interface for ProductReview model
     """
@@ -375,7 +376,7 @@ class ProductReviewAdmin(admin.ModelAdmin):
 
 
 @admin.register(ProductPurchase)
-class ProductPurchaseAdmin(admin.ModelAdmin):
+class ProductPurchaseAdmin(BaseAdminPermissions):
     """
     Admin interface for ProductPurchase model
     """
@@ -520,7 +521,7 @@ class ProductPurchaseAdmin(admin.ModelAdmin):
 
 
 @admin.register(ProductUpdate)
-class ProductUpdateAdmin(admin.ModelAdmin):
+class ProductUpdateAdmin(BaseAdminPermissions):
     """
     Admin interface for ProductUpdate model
     """
@@ -592,7 +593,7 @@ class ProductUpdateAdmin(admin.ModelAdmin):
 
 
 @admin.register(ProductGalleryImage)
-class ProductGalleryImageAdmin(admin.ModelAdmin):
+class ProductGalleryImageAdmin(BaseAdminPermissions):
     """
     Admin interface for ProductGalleryImage model
     """

@@ -12,10 +12,11 @@ from .models import (
     Technology, Project, ProjectGalleryImage, ProjectSection,
     ProjectComment, ProjectTechnology
 )
+from accounts.admin import BaseAdminPermissions
 
 
 @admin.register(Technology)
-class TechnologyAdmin(admin.ModelAdmin):
+class TechnologyAdmin(BaseAdminPermissions):
     """
     Admin interface for Technology model
     """
@@ -137,7 +138,7 @@ class ProjectCommentInline(admin.TabularInline):
 
 
 @admin.register(Project)
-class ProjectAdmin(admin.ModelAdmin):
+class ProjectAdmin(BaseAdminPermissions):
     """
     Admin interface for Project model
     """
@@ -303,7 +304,7 @@ class ProjectAdmin(admin.ModelAdmin):
 
 
 @admin.register(ProjectComment)
-class ProjectCommentAdmin(admin.ModelAdmin):
+class ProjectCommentAdmin(BaseAdminPermissions):
     """
     Admin interface for ProjectComment model
     """
@@ -407,7 +408,7 @@ class ProjectCommentAdmin(admin.ModelAdmin):
 
 
 @admin.register(ProjectGalleryImage)
-class ProjectGalleryImageAdmin(admin.ModelAdmin):
+class ProjectGalleryImageAdmin(BaseAdminPermissions):
     """
     Admin interface for ProjectGalleryImage model
     """
