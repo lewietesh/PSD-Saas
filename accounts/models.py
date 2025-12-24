@@ -103,6 +103,12 @@ class User(AbstractBaseUser, PermissionsMixin):
     account_balance = models.DecimalField(max_digits=12, decimal_places=2, default=0.00, help_text="Denormalized user balance for quick reads")
     currency = models.CharField(max_length=10, default='USD', blank=True, help_text="Preferred currency code (e.g., USD, KSH)")
     language_preference = models.CharField(max_length=32, default='English', blank=True, help_text="Preferred language name (e.g., English)")
+    user_timezone = models.CharField(
+        max_length=50, 
+        default='GMT', 
+        blank=True,
+        help_text="User's timezone (e.g., GMT, America/New_York, Africa/Nairobi)"
+    )
 
     # Timestamps
     date_joined = models.DateTimeField(default=timezone.now)

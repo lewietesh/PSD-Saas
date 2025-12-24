@@ -14,6 +14,7 @@ router.register(r'why-choose-us', views.WhyChooseUsViewSet, basename='whychooseu
 router.register(r'roadmap', views.RoadmapViewSet, basename='roadmap')
 router.register(r'support-tickets', views.SupportTicketViewSet, basename='supportticket')
 router.register(r'support-attachments', views.SupportAttachmentViewSet, basename='supportattachment')
+router.register(r'faqs', views.FAQViewSet, basename='faq')
 
 # Define URL patterns
 urlpatterns = [

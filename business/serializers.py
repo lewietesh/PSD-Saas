@@ -21,6 +21,8 @@ User = get_user_model()
 class ServiceRequestSerializer(serializers.ModelSerializer):
     can_convert_to_order = serializers.SerializerMethodField()
     order_details = serializers.SerializerMethodField()
+    service_name = serializers.CharField(source='service.name', read_only=True)
+    pricing_tier_name = serializers.CharField(source='pricing_tier.name', read_only=True, allow_null=True)
     service_type = serializers.ChoiceField(
         choices=ServiceRequest.SERVICE_TYPE_CHOICES,
         default='technical'
@@ -66,12 +68,13 @@ class ServiceRequestSerializer(serializers.ModelSerializer):
     class Meta:
         model = ServiceRequest
         fields = [
-            'id', 'service', 'name', 'email', 'project_description',
+            'id', 'service', 'service_name', 'pricing_tier', 'pricing_tier_name',
+            'name', 'email', 'project_description', 'budget',
             'timeline', 'service_type', 'subject', 'citations', 'formatting_style',
             'pages', 'attachment', 'status', 'order', 'created_at', 'updated_at',
             'can_convert_to_order', 'order_details'
         ]
-        read_only_fields = ['id', 'status', 'order', 'created_at', 'updated_at', 'can_convert_to_order', 'order_details']
+        read_only_fields = ['id', 'status', 'order', 'created_at', 'updated_at', 'can_convert_to_order', 'order_details', 'service_name', 'pricing_tier_name']
 
     def get_can_convert_to_order(self, obj):
         """Check if this service request can be converted to an order"""
@@ -193,7 +196,7 @@ class TestimonialCreateSerializer(serializers.ModelSerializer):
     """
     Serializer for creating testimonials with validation
     """
-    client_name = serializers.CharField(source='client.get_full_name', read_only=True)
+    client_name = serializers.CharField(source='client.full_name', read_only=True)
     client_email = serializers.CharField(source='client.email', read_only=True)
     
     class Meta:
@@ -237,18 +240,32 @@ class TestimonialCreateSerializer(serializers.ModelSerializer):
 
 class TestimonialListSerializer(serializers.ModelSerializer):
     """
-    Serializer for listing testimonials with minimal client info
+    Serializer for listing testimonials with available client info
     """
-    client_name = serializers.CharField(source='client.get_full_name', read_only=True)
-    project_title = serializers.CharField(source='project.title', read_only=True)
-    service_name = serializers.CharField(source='service.name', read_only=True)
+    client_name = serializers.SerializerMethodField()
+    profile_url = serializers.SerializerMethodField()
+    verified = serializers.BooleanField(source='client.is_verified', read_only=True)
+    service_name = serializers.CharField(source='service.name', read_only=True, allow_null=True)
     
     class Meta:
         model = Testimonial
         fields = [
-            'id', 'client_name', 'project_title', 'service_name',
-            'content', 'rating', 'featured', 'date_created'
+            'id', 'service_name', 'content', 'rating', 'featured',
+            'date_created', 'client_name', 'profile_url', 'verified'
         ]
+    
+    def get_client_name(self, obj):
+        """Get client's full name"""
+        return obj.client.full_name if obj.client else 'Anonymous Client'
+    
+    def get_profile_url(self, obj):
+        """Get client's profile image URL"""
+        if obj.client.profile_img:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.client.profile_img.url)
+            return obj.client.profile_img.url
+        return None
 
 
 class PaymentSerializer(serializers.ModelSerializer):
@@ -256,7 +273,7 @@ class PaymentSerializer(serializers.ModelSerializer):
     Serializer for payment records with validation
     """
     order_number = serializers.CharField(source='order.id', read_only=True)
-    client_name = serializers.CharField(source='order.client.get_full_name', read_only=True)
+    client_name = serializers.CharField(source='order.client.full_name', read_only=True)
     # Alias backend field date_created to created_at for frontend compatibility
     created_at = serializers.DateTimeField(source='date_created', read_only=True)
     # Frontend-friendly aliases
@@ -349,7 +366,7 @@ class OrderCreateSerializer(serializers.ModelSerializer):
     Serializer for creating orders with comprehensive validation
     """
     order_number = serializers.CharField(read_only=True)
-    client_name = serializers.CharField(source='client.get_full_name', read_only=True)
+    client_name = serializers.CharField(source='client.full_name', read_only=True)
     service_name = serializers.CharField(source='service.name', read_only=True)
     product_name = serializers.CharField(source='product.name', read_only=True)
     pricing_tier_name = serializers.CharField(source='pricing_tier.name', read_only=True)
@@ -436,7 +453,7 @@ class OrderListSerializer(serializers.ModelSerializer):
     """
     Serializer for listing orders with essential information
     """
-    client_name = serializers.CharField(source='client.get_full_name', read_only=True)
+    client_name = serializers.CharField(source='client.full_name', read_only=True)
     client_email = serializers.CharField(source='client.email', read_only=True)
     service_name = serializers.CharField(source='service.name', read_only=True)
     product_name = serializers.CharField(source='product.name', read_only=True)
@@ -445,13 +462,16 @@ class OrderListSerializer(serializers.ModelSerializer):
     total_paid = serializers.SerializerMethodField()
     attachment_count = serializers.SerializerMethodField()
     work_result_count = serializers.SerializerMethodField()
+    message_thread = serializers.SerializerMethodField()
+    unread_messages = serializers.SerializerMethodField()
     
     class Meta:
         model = Order
         fields = [
             'id', 'client_name', 'client_email', 'service_name', 'product_name',
             'pricing_tier_name', 'total_amount', 'currency', 'status', 'payment_status',
-            'payment_count', 'total_paid', 'attachment_count', 'work_result_count', 'due_date', 'date_created'
+            'payment_count', 'total_paid', 'attachment_count', 'work_result_count', 
+            'message_thread', 'unread_messages', 'due_date', 'date_created'
         ]
     
     def get_payment_count(self, obj):
@@ -471,6 +491,20 @@ class OrderListSerializer(serializers.ModelSerializer):
     def get_work_result_count(self, obj):
         """Get number of work results"""
         return len(obj.work_results) if obj.work_results else 0
+    
+    def get_message_thread(self, obj):
+        """Get the order's message thread ID"""
+        message = obj.messages.filter(message_type='order').first()
+        return message.id if message else None
+    
+    def get_unread_messages(self, obj):
+        """Count unread messages in order thread"""
+        message = obj.messages.filter(message_type='order').first()
+        if not message:
+            return 0
+        # TODO: Implement proper unread tracking with user FK on MessageReply
+        # For now, return total reply count
+        return message.message_replies.count()
 
 
 class OrderDetailSerializer(serializers.ModelSerializer):
@@ -485,6 +519,8 @@ class OrderDetailSerializer(serializers.ModelSerializer):
     payment_summary = serializers.SerializerMethodField()
     file_attachments = serializers.SerializerMethodField()
     work_results = serializers.SerializerMethodField()
+    message_thread = serializers.SerializerMethodField()
+    unread_messages = serializers.SerializerMethodField()
     
     class Meta:
         model = Order
@@ -493,7 +529,8 @@ class OrderDetailSerializer(serializers.ModelSerializer):
             'pricing_tier_details', 'total_amount', 'currency', 'status',
             'payment_status', 'payment_method', 'transaction_id', 'notes',
             'due_date', 'payments', 'payment_summary', 'file_attachments', 
-            'work_results', 'date_created', 'date_updated'
+            'work_results', 'message_thread', 'unread_messages',
+            'date_created', 'date_updated'
         ]
     
     def get_client_details(self, obj):
@@ -501,7 +538,7 @@ class OrderDetailSerializer(serializers.ModelSerializer):
         if obj.client:
             return {
                 'id': obj.client.id,
-                'name': obj.client.get_full_name(),
+                'name': obj.client.full_name,
                 'email': obj.client.email,
                 'phone': obj.client.phone,
             }
@@ -513,7 +550,7 @@ class OrderDetailSerializer(serializers.ModelSerializer):
             return {
                 'id': obj.service.id,
                 'name': obj.service.name,
-                'category': obj.service.category,
+                'category': obj.service.service_category.name if obj.service.service_category else None,
                 'pricing_model': obj.service.pricing_model,
             }
         return None
@@ -589,13 +626,27 @@ class OrderDetailSerializer(serializers.ModelSerializer):
                 'type': 'work_result'
             })
         return work_results
+    
+    def get_message_thread(self, obj):
+        """Get the order's message thread ID"""
+        message = obj.messages.filter(message_type='order').first()
+        return message.id if message else None
+    
+    def get_unread_messages(self, obj):
+        """Count unread messages in order thread"""
+        message = obj.messages.filter(message_type='order').first()
+        if not message:
+            return 0
+        # TODO: Implement proper unread tracking with user FK on MessageReply
+        # For now, return total reply count
+        return message.message_replies.count()
 
 
 class NotificationSerializer(serializers.ModelSerializer):
     """
     Serializer for system notifications
     """
-    user_name = serializers.CharField(source='user.get_full_name', read_only=True)
+    user_name = serializers.CharField(source='user.full_name', read_only=True)
     
     class Meta:
         model = Notification

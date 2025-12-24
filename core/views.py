@@ -12,7 +12,7 @@ from rest_framework import generics
 from .models import (
     ContactInfo, NewsletterSubscription, HeroSection, AboutSection,  
     WorkExperience, AboutStats, WhyChooseUs, Roadmap,
-    SupportTicket, SupportAttachment
+    SupportTicket, SupportAttachment, FAQ
 )
 from .serializers import (
     ContactInfoSerializer, NewsletterSubscriptionSerializer,
@@ -24,7 +24,8 @@ from .serializers import (
     RoadmapSerializer, PublicRoadmapSerializer,
     CompleteAboutDataSerializer,
     SupportTicketSerializer, SupportTicketCreateSerializer, 
-    SupportTicketListSerializer, SupportAttachmentSerializer
+    SupportTicketListSerializer, SupportAttachmentSerializer,
+    FAQSerializer, PublicFAQSerializer
 )
 
 # Newsletter Subscription API View
@@ -468,3 +469,41 @@ class SupportAttachmentViewSet(viewsets.ModelViewSet):
         except SupportTicket.DoesNotExist:
             from rest_framework.exceptions import ValidationError
             raise ValidationError("Invalid ticket ID.")
+
+
+# FAQ ViewSet
+class FAQViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for managing FAQs
+    - Public GET access for active FAQs
+    - Admin access for all CRUD operations
+    """
+    queryset = FAQ.objects.all()
+    serializer_class = FAQSerializer
+    
+    def get_permissions(self):
+        """Allow public read access, admin for write operations"""
+        if self.action in ['list', 'retrieve']:
+            return [permissions.AllowAny()]
+        return [permissions.IsAdminUser()]
+    
+    def get_queryset(self):
+        """Filter FAQs based on user permissions"""
+        if self.request.user.is_staff:
+            return FAQ.objects.all()
+        # Public users only see active FAQs
+        return FAQ.objects.filter(is_active=True)
+    
+    def get_serializer_class(self):
+        """Use PublicFAQSerializer for public access"""
+        if self.request.user.is_staff:
+            return FAQSerializer
+        return PublicFAQSerializer
+    
+    @method_decorator(cache_page(60 * 15))
+    @action(detail=False, methods=['get'])
+    def featured(self, request):
+        """Get featured FAQs for public display"""
+        featured_faqs = FAQ.objects.filter(is_active=True, featured=True)
+        serializer = PublicFAQSerializer(featured_faqs, many=True)
+        return Response(serializer.data)

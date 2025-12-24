@@ -13,7 +13,7 @@ class UserBasicSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = User
-        fields = ['id', 'email', 'first_name', 'last_name', 'full_name', 'role', 'profile_img']
+        fields = ['id', 'email', 'first_name', 'last_name', 'full_name', 'role', 'profile_img', 'is_verified']
 
 
 class PartnerSerializer(serializers.ModelSerializer):
@@ -181,7 +181,7 @@ class UserDetailSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'email', 'first_name', 'last_name', 'full_name',
             'phone', 'role', 'is_active', 'date_joined', 'date_updated', 'profile_img', 'is_verified',
-            'account_balance', 'currency', 'language_preference', 'affiliate_code', 'partner_profile',
+            'account_balance', 'currency', 'language_preference', 'user_timezone', 'affiliate_code', 'partner_profile',
             'two_factor_enabled', 'is_social_login', 'can_change_password'
         ]
         read_only_fields = ['id', 'date_joined', 'date_updated', 'role', 'email', 'is_verified', 'is_social_login', 'can_change_password']
@@ -234,7 +234,7 @@ class UserUpdateSerializer(serializers.ModelSerializer):
     """
     class Meta:
         model = User
-        fields = ['first_name', 'last_name', 'phone', 'currency', 'language_preference', 'affiliate_code']
+        fields = ['first_name', 'last_name', 'phone', 'currency', 'language_preference', 'user_timezone', 'affiliate_code']
     
     def validate_phone(self, value):
         """Validate phone number format"""
@@ -311,7 +311,6 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True)
     code = serializers.CharField(required=True, min_length=6, max_length=6)
     new_password = serializers.CharField(required=True, validators=[validate_password])
-    new_password_confirm = serializers.CharField(required=True)
     
     def validate_code(self, value):
         """Validate verification code format"""
@@ -320,11 +319,7 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
         return value
     
     def validate(self, attrs):
-        """Validate password confirmation"""
-        if attrs['new_password'] != attrs['new_password_confirm']:
-            raise serializers.ValidationError("Passwords don't match.")
-        
-        # Normalize email
+        """Normalize email"""
         attrs['email'] = attrs['email'].lower().strip()
         return attrs
 

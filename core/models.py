@@ -93,6 +93,16 @@ class HeroSection(models.Model):
         blank=True,
         help_text="Call-to-action button URL"
     )
+    media = models.FileField(
+        upload_to='hero_media/',
+        blank=True,
+        null=True,
+        help_text="Background media for hero section - supports both images (jpg, png, webp) and videos (mp4, webm, mov, avi). Max size: 80MB.",
+        validators=[
+            FileExtensionValidator(allowed_extensions=['mp4', 'webm', 'mov', 'avi', 'jpg', 'jpeg', 'png', 'webp']),
+            validate_file_size
+        ]
+    )
     is_active = models.BooleanField(
         default=True,
         help_text="Only one hero section should be active at a time per page"
@@ -250,9 +260,11 @@ class WhyChooseUs(models.Model):
     """
     reason_title = models.CharField(max_length=200)
     reason_description = models.TextField()
-    icon_name = models.CharField(
-        max_length=50, blank=True,
-        help_text="Lucide icon name (e.g., 'shield', 'zap', 'heart')"
+    img = models.ImageField(
+        upload_to='why_choose_us_icons/',
+        blank=True,
+        null=True,
+        help_text="Upload an icon (SVG, PNG, JPG, etc.) for this feature"
     )
     display_order = models.IntegerField(default=0)
     is_active = models.BooleanField(default=True)
@@ -478,4 +490,40 @@ class SupportAttachment(models.Model):
     
     def __str__(self):
         return self.title
+
+
+class FAQ(models.Model):
+    """
+    Frequently Asked Questions - Simple model for managing FAQs
+    """
+    question = models.TextField(help_text="The FAQ question")
+    answer = models.TextField(help_text="The answer to the question")
+    featured = models.BooleanField(
+        default=False,
+        help_text="Featured FAQs appear at the top"
+    )
+    links = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Optional links related to this FAQ (e.g., {\"Learn More\": \"https://example.com\"})"
+    )
+    display_order = models.IntegerField(
+        default=0,
+        help_text="Lower numbers appear first"
+    )
+    is_active = models.BooleanField(
+        default=True,
+        help_text="Only active FAQs are shown to users"
+    )
+    date_created = models.DateTimeField(auto_now_add=True)
+    date_updated = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'faqs'
+        verbose_name = 'FAQ'
+        verbose_name_plural = 'FAQs'
+        ordering = ['-featured', 'display_order', '-date_created']
+    
+    def __str__(self):
+        return f"{self.question[:50]}..." if len(self.question) > 50 else self.question
     

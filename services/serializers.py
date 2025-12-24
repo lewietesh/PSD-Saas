@@ -246,6 +246,7 @@ class ServiceListSerializer(serializers.ModelSerializer):
     category = serializers.SerializerMethodField()
     pricing_tiers_count = serializers.SerializerMethodField()
     min_price = serializers.SerializerMethodField()
+    service_image = serializers.SerializerMethodField()
     
     class Meta:
         model = Service
@@ -255,6 +256,8 @@ class ServiceListSerializer(serializers.ModelSerializer):
             'slug',
             'category',
             'description',
+            'short_description',
+            'service_image',
             'pricing_model',
             'starting_at',
             'currency',
@@ -265,6 +268,15 @@ class ServiceListSerializer(serializers.ModelSerializer):
             'min_price',
             'date_created'
         ]
+    
+    def get_service_image(self, obj):
+        """Return full URL for service image"""
+        if obj.service_image:
+            request = self.context.get('request')
+            if request is not None:
+                return request.build_absolute_uri(obj.service_image.url)
+            return obj.service_image.url
+        return None
     
     def get_category(self, obj):
         """Return category name from service_category relationship"""
@@ -609,6 +621,7 @@ class PublicServiceListSerializer(serializers.ModelSerializer):
     min_price = serializers.SerializerMethodField()
     pricing_tiers_count = serializers.SerializerMethodField()
     category = serializers.SerializerMethodField()
+    service_image = serializers.SerializerMethodField()
     
     class Meta:
         model = Service
@@ -618,6 +631,7 @@ class PublicServiceListSerializer(serializers.ModelSerializer):
             'slug',
             'category',
             'description',
+            'service_image',
             'pricing_model',
             'starting_at',
             'currency',
@@ -626,6 +640,15 @@ class PublicServiceListSerializer(serializers.ModelSerializer):
             'min_price',
             'pricing_tiers_count'
         ]
+    
+    def get_service_image(self, obj):
+        """Return full URL for service image"""
+        if obj.service_image:
+            request = self.context.get('request')
+            if request is not None:
+                return request.build_absolute_uri(obj.service_image.url)
+            return obj.service_image.url
+        return None
     
     def get_category(self, obj):
         """Return category name from service_category relationship"""
@@ -649,6 +672,7 @@ class PublicServiceDetailSerializer(serializers.ModelSerializer):
     
     category = serializers.SerializerMethodField()
     service_category = ServiceCategorySerializer(read_only=True)
+    service_image = serializers.SerializerMethodField()
     pricing_tiers = ServicePricingTierSerializer(many=True, read_only=True)
     process_steps = ServiceProcessStepSerializer(many=True, read_only=True)
     deliverables = ServiceDeliverableSerializer(many=True, read_only=True)
@@ -665,6 +689,7 @@ class PublicServiceDetailSerializer(serializers.ModelSerializer):
             'service_category',
             'category',
             'description',
+            'service_image',
             'pricing_model',
             'starting_at',
             'currency',
@@ -677,6 +702,15 @@ class PublicServiceDetailSerializer(serializers.ModelSerializer):
             'popular_usecases',
             'faqs'
         ]
+    
+    def get_service_image(self, obj):
+        """Return full URL for service image"""
+        if obj.service_image:
+            request = self.context.get('request')
+            if request is not None:
+                return request.build_absolute_uri(obj.service_image.url)
+            return obj.service_image.url
+        return None
     
     def get_category(self, obj):
         """Return category name from service_category relationship"""

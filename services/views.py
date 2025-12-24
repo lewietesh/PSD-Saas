@@ -39,6 +39,7 @@ class ServiceCategoryViewSet(viewsets.ModelViewSet):
     """
     serializer_class = ServiceCategorySerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    lookup_field = 'slug'
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['name', 'short_desc']
     filterset_fields = ['active']

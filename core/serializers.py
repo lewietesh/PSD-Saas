@@ -3,7 +3,7 @@ from rest_framework import serializers
 from .models import (
     ContactInfo, NewsletterSubscription, HeroSection, AboutSection,
     WorkExperience, AboutStats, WhyChooseUs, Roadmap,
-    SupportTicket, SupportAttachment
+    SupportTicket, SupportAttachment, FAQ
 )
 from accounts.serializers import UserBasicSerializer
 
@@ -72,7 +72,7 @@ class WhyChooseUsSerializer(serializers.ModelSerializer):
     class Meta:
         model = WhyChooseUs
         fields = [
-            'id', 'reason_title', 'reason_description', 'icon_name',
+            'id', 'reason_title', 'reason_description', 'img',
             'display_order', 'is_active', 'date_created', 'date_updated'
         ]
         read_only_fields = ['id', 'date_created', 'date_updated']
@@ -80,7 +80,7 @@ class WhyChooseUsSerializer(serializers.ModelSerializer):
 class PublicWhyChooseUsSerializer(serializers.ModelSerializer):
     class Meta:
         model = WhyChooseUs
-        fields = ['reason_title', 'reason_description', 'icon_name']
+        fields = ['reason_title', 'reason_description', 'img']
 
 # Roadmap Serializers
 class RoadmapSerializer(serializers.ModelSerializer):
@@ -117,6 +117,7 @@ class HeroSectionSerializer(serializers.ModelSerializer):
             'subheading',
             'cta_text',
             'cta_link',
+            'media',
             'is_active',
             'date_created',
             'date_updated'
@@ -152,7 +153,7 @@ class PublicHeroSectionSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = HeroSection
-        fields = ['page', 'heading', 'subheading', 'cta_text', 'cta_link']
+        fields = ['page', 'heading', 'subheading', 'cta_text', 'cta_link', 'media']
 
 # About Section Serializers
 class AboutSectionSerializer(serializers.ModelSerializer):
@@ -339,3 +340,23 @@ class SupportTicketListSerializer(serializers.ModelSerializer):
     def get_attachment_count(self, obj):
         """Get count of attachments."""
         return obj.attachments.count()
+
+
+class FAQSerializer(serializers.ModelSerializer):
+    """Serializer for FAQ model - both admin and public use"""
+    
+    class Meta:
+        model = FAQ
+        fields = [
+            'id', 'question', 'answer', 'featured', 'links',
+            'display_order', 'is_active', 'date_created', 'date_updated'
+        ]
+        read_only_fields = ['id', 'date_created', 'date_updated']
+
+
+class PublicFAQSerializer(serializers.ModelSerializer):
+    """Public serializer for FAQs - only active FAQs"""
+    
+    class Meta:
+        model = FAQ
+        fields = ['id', 'question', 'answer', 'featured', 'links']

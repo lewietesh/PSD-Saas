@@ -41,7 +41,7 @@ User = get_user_model()
 class ServiceRequestViewSet(viewsets.ModelViewSet):
     """
     API endpoint for creating and managing service requests (with file upload support).
-    Anyone can POST, only staff/admin can list/retrieve.
+    Anyone can POST (create), authenticated users can view their own, staff/admin can see all.
     """
     queryset = ServiceRequest.objects.all().select_related('service', 'pricing_tier', 'order')
     serializer_class = ServiceRequestSerializer
@@ -50,14 +50,23 @@ class ServiceRequestViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action in ['create']:
             return [permissions.AllowAny()]
+        elif self.action in ['list', 'retrieve']:
+            return [permissions.IsAuthenticated()]
         return [permissions.IsAdminUser()]
 
     def get_queryset(self):
-        # Only staff/admin can list/retrieve all
         user = self.request.user
-        if not user.is_authenticated or not user.is_staff:
+        
+        # Anonymous users can't list/retrieve
+        if not user.is_authenticated:
             return ServiceRequest.objects.none()
-        return super().get_queryset()
+        
+        # Staff/admin can see all service requests
+        if user.is_staff:
+            return super().get_queryset()
+        
+        # Regular authenticated users can only see their own (by email)
+        return ServiceRequest.objects.filter(email=user.email).select_related('service', 'pricing_tier', 'order')
 
     def perform_create(self, serializer):
         """Create a new service request instance."""
@@ -158,7 +167,7 @@ class OrderViewSet(viewsets.ModelViewSet):
                 user=admin,
                 notification_type='order',
                 title='New Order Received',
-                message=f'New order {order.id[:8]} from {order.client.get_full_name()}',
+                message=f'New order {order.id[:8]} from {order.client.full_name or order.client.email}',
                 resource_id=str(order.id),
                 resource_type='order',
                 priority='medium'
@@ -345,7 +354,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         timeline.append({
             'date': order.date_created,
             'event': 'Order Created',
-            'description': f'Order created for {order.client.get_full_name()}',
+            'description': f'Order created for {order.client.full_name or order.client.email}',
             'type': 'order'
         })
         
@@ -450,6 +459,128 @@ class OrderViewSet(viewsets.ModelViewSet):
         
         return Response({
             'message': f'File {filename} deleted successfully'
+        })
+    
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated], parser_classes=[MultiPartParser, FormParser])
+    def upload_attachments(self, request, pk=None):
+        """
+        Upload client attachments to an order with strict validation:
+        - Only PDF, Word (.doc, .docx), and .txt files
+        - Max 5MB per file
+        - Max 10 files per order
+        """
+        import os
+        from django.core.files.storage import default_storage
+        from django.core.files.base import ContentFile
+        
+        order = self.get_object()
+        
+        # Check if user owns this order (clients can only upload to their own orders)
+        if request.user.role == 'client' and order.client != request.user:
+            return Response(
+                {'error': 'You can only upload files to your own orders'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        files = request.FILES.getlist('files')
+        
+        if not files:
+            return Response(
+                {'error': 'No files provided'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Check total file count limit
+        current_count = len(order.attachments)
+        if current_count + len(files) > 10:
+            return Response(
+                {'error': f'Maximum 10 files per order. You have {current_count} file(s) already.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Allowed file extensions and max size
+        ALLOWED_EXTENSIONS = ['.pdf', '.doc', '.docx', '.txt']
+        MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB in bytes
+        
+        uploaded_files = []
+        errors = []
+        
+        for file in files:
+            # Validate file extension
+            file_ext = os.path.splitext(file.name)[1].lower()
+            if file_ext not in ALLOWED_EXTENSIONS:
+                errors.append(f'{file.name}: Invalid file type. Only PDF, Word, and TXT files allowed.')
+                continue
+            
+            # Validate file size
+            if file.size > MAX_FILE_SIZE:
+                errors.append(f'{file.name}: File too large. Maximum 5MB per file.')
+                continue
+            
+            # Generate safe filename
+            safe_filename = f"{order.id}_{timezone.now().strftime('%Y%m%d_%H%M%S')}_{file.name}"
+            file_path = f'orders/attachments/{safe_filename}'
+            
+            try:
+                # Save file
+                saved_path = default_storage.save(file_path, ContentFile(file.read()))
+                
+                # Add to order's attachments array
+                order.add_attachment(safe_filename)
+                uploaded_files.append({
+                    'filename': safe_filename,
+                    'original_name': file.name,
+                    'size': file.size,
+                    'url': default_storage.url(saved_path)
+                })
+            except Exception as e:
+                errors.append(f'{file.name}: Upload failed - {str(e)}')
+        
+        response_data = {
+            'message': f'{len(uploaded_files)} file(s) uploaded successfully',
+            'uploaded_files': uploaded_files,
+            'total_attachments': len(order.attachments)
+        }
+        
+        if errors:
+            response_data['errors'] = errors
+        
+        return Response(response_data, status=status.HTTP_201_CREATED)
+    
+    @action(detail=True, methods=['get'], permission_classes=[IsAuthenticated])
+    def timeline(self, request, pk=None):
+        """
+        Get minimal timeline of activities for an order.
+        Returns key events like order creation, status changes, payments, messages, and file uploads.
+        """
+        from .models import OrderActivity
+        
+        order = self.get_object()
+        
+        # Check if user can access this order
+        if request.user.role == 'client' and order.client != request.user:
+            return Response(
+                {'error': 'You can only view timeline for your own orders'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Get all activities for this order
+        activities = order.activities.all()
+        
+        timeline_data = []
+        for activity in activities:
+            timeline_data.append({
+                'id': activity.id,
+                'type': activity.activity_type,
+                'description': activity.description,
+                'created_by': activity.created_by.full_name if activity.created_by else 'System',
+                'created_at': activity.created_at.isoformat()
+            })
+        
+        return Response({
+            'order_id': str(order.id),
+            'timeline': timeline_data,
+            'count': len(timeline_data)
         })
 
 
@@ -636,7 +767,7 @@ class TestimonialViewSet(viewsets.ModelViewSet):
                 user=admin,
                 notification_type='review',
                 title='New Testimonial Submitted',
-                message=f'New testimonial from {testimonial.client.get_full_name()}',
+                message=f'New testimonial from {testimonial.client.full_name or testimonial.client.email}',
                 resource_id=str(testimonial.id),
                 resource_type='testimonial',
                 priority='low'

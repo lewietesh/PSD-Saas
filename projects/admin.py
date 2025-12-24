@@ -466,7 +466,4 @@ class ProjectGalleryImageAdmin(BaseAdminPermissions):
         return super().get_queryset(request).select_related('project')
 
 
-# Custom admin site configuration
-admin.site.site_header = "Portfolio Projects Administration"
-admin.site.site_title = "Projects Admin"
-admin.site.index_title = "Projects Management Dashboard"
+# Custom admin site configuration removed - now configured in settings.py via Jazzmin

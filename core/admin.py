@@ -4,11 +4,13 @@ from django.contrib import admin
 from django.utils.html import format_html
 from django.urls import reverse
 from django.utils.safestring import mark_safe
+
 from .models import (
     HeroSection, AboutSection, ContactInfo, NewsletterSubscription,
     WorkExperience, AboutStats, WhyChooseUs, Roadmap,
-    SupportTicket, SupportAttachment
+    SupportTicket, SupportAttachment, FAQ
 )
+
 from accounts.admin import BaseAdminPermissions
 
 # NewsletterSubscription admin
@@ -160,17 +162,40 @@ class AboutStatsAdmin(BaseAdminPermissions):
 # Why Choose Us Admin
 @admin.register(WhyChooseUs)
 class WhyChooseUsAdmin(BaseAdminPermissions):
-    list_display = ['reason_title', 'reason_description_preview', 'icon_name', 'is_active', 'display_order']
+    list_display = ['reason_title', 'reason_description_preview', 'img_preview', 'is_active', 'display_order']
     list_filter = ['is_active', 'date_created']
     search_fields = ['reason_title', 'reason_description']
-    readonly_fields = ['date_created', 'date_updated']
+    readonly_fields = ['date_created', 'date_updated', 'img_preview']
     ordering = ['display_order', 'reason_title']
+    
+    fieldsets = (
+        ('Content', {
+            'fields': ('reason_title', 'reason_description')
+        }),
+        ('Icon Settings', {
+            'fields': ('img', 'img_preview'),
+            'description': 'Upload an icon image (SVG, PNG, JPG, etc.)'
+        }),
+        ('Display Settings', {
+            'fields': ('display_order', 'is_active')
+        }),
+        ('Timestamps', {
+            'fields': ('date_created', 'date_updated'),
+            'classes': ('collapse',)
+        }),
+    )
     
     def reason_description_preview(self, obj):
         if obj.reason_description:
             return (obj.reason_description[:75] + '...') if len(obj.reason_description) > 75 else obj.reason_description
         return '-'
     reason_description_preview.short_description = 'Description'
+    
+    def img_preview(self, obj):
+        if obj.img:
+            return mark_safe(f'<img src="{obj.img.url}" width="50" height="50" style="object-fit: contain;" />')
+        return '-'
+    img_preview.short_description = 'Icon Preview'
     
     actions = ['activate_reasons', 'deactivate_reasons']
     
@@ -235,6 +260,7 @@ class HeroSectionAdmin(BaseAdminPermissions):
         'heading', 
         'subheading_preview', 
         'page',
+        'has_video',
         'is_active_display', 
         'has_cta',
         'date_created',
@@ -247,6 +273,10 @@ class HeroSectionAdmin(BaseAdminPermissions):
     fieldsets = (
         ('Content', {
             'fields': ('page', 'heading', 'subheading')
+        }),
+        ('Media', {
+            'fields': ('media',),
+            'description': 'Upload background media - supports both images (jpg, png, webp) and videos (mp4, webm) for the hero section'
         }),
         ('Call to Action', {
             'fields': ('cta_text', 'cta_link'),
@@ -284,6 +314,12 @@ class HeroSectionAdmin(BaseAdminPermissions):
         return bool(obj.cta_text and obj.cta_link)
     has_cta.boolean = True
     has_cta.short_description = 'Has CTA'
+    
+    def has_video(self, obj):
+        """Check if hero section has background media"""
+        return bool(obj.media)
+    has_video.boolean = True
+    has_video.short_description = 'Has Media'
     
     actions = ['activate_hero', 'deactivate_hero']
     
@@ -453,6 +489,35 @@ class SupportAttachmentAdmin(BaseAdminPermissions):
     list_filter = ('uploaded_at',)
     search_fields = ('ticket__subject', 'original_filename')
     readonly_fields = ('original_filename', 'file_size', 'uploaded_at')
+
+@admin.register(FAQ)
+class FAQAdmin(BaseAdminPermissions):
+    list_display = ('question_preview', 'featured', 'display_order', 'is_active', 'date_created')
+    list_filter = ('featured', 'is_active', 'date_created')
+    search_fields = ('question', 'answer')
+    ordering = ('-featured', 'display_order', '-date_created')
+    list_editable = ('featured', 'display_order', 'is_active')
+    
+    fieldsets = (
+        ('Question & Answer', {
+            'fields': ('question', 'answer')
+        }),
+        ('Settings', {
+            'fields': ('featured', 'display_order', 'is_active')
+        }),
+        ('Additional Info', {
+            'fields': ('links',),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def question_preview(self, obj):
+        """Show first 80 characters of question"""
+        if len(obj.question) > 80:
+            return f"{obj.question[:80]}..."
+        return obj.question
+    question_preview.short_description = 'Question'
+
 
 # Admin site customization
 # admin.site.site_header = "Portfolio API Administration"

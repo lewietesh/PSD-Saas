@@ -864,7 +864,7 @@ def export_orders_to_csv(queryset, filename=None):
         
         writer.writerow([
             order.id,
-            order.client.get_full_name(),
+            order.client.full_name or order.client.email,
             order.client.email,
             service_product,
             str(order.total_amount),

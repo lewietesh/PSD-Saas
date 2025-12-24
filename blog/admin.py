@@ -365,7 +365,4 @@ class BlogCommentAdmin(BaseAdminPermissions):
         ).order_by('-date_created')
 
 
-# Custom admin site configuration
-admin.site.site_header = "Portfolio Blog Administration"
-admin.site.site_title = "Blog Admin"
-admin.site.index_title = "Blog Management Dashboard"
+# Custom admin site configuration removed - now configured in settings.py via Jazzmin

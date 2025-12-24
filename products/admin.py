@@ -651,10 +651,7 @@ class ProductGalleryImageAdmin(BaseAdminPermissions):
         return super().get_queryset(request).select_related('product')
 
 
-# Custom admin site configuration
-admin.site.site_header = "Portfolio Products Administration"
-admin.site.site_title = "Products Admin"
-admin.site.index_title = "Products Management Dashboard"
+# Custom admin site configuration removed - now configured in settings.py via Jazzmin
 
 
 # Custom filters

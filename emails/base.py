@@ -1,10 +1,15 @@
 # emails/base.py
+import logging
+import traceback
+
+
 from django.core.mail import send_mail, EmailMultiAlternatives
 from django.conf import settings
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
-import logging
+
 from django.utils import timezone
+
 logger = logging.getLogger(__name__)
 
 
@@ -15,33 +20,68 @@ class BaseEmail:
         self.subject = subject
         self.message = message
         self.recipient = recipient
-        self.from_email = from_email or getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@portfolio.com')
+        self.from_email = from_email or getattr(settings, 'DEFAULT_FROM_EMAIL', 'support@wordknox.com')
         self.template_name = template_name
         self.context = context or {}
         
         # Add default context for templates
         self.context.update({
-            'company_name': getattr(settings, 'COMPANY_NAME', 'Portfolio'),
+            'company_name': getattr(settings, 'COMPANY_NAME', 'Wordknox'),
             'company_email': self.from_email,
             'company_phone': getattr(settings, 'COMPANY_PHONE', '+254 700 000 000'),
-            'company_website': getattr(settings, 'COMPANY_WEBSITE', 'https://portfolio.com'),
-            'support_email': getattr(settings, 'SUPPORT_EMAIL', 'support@portfolio.com'),
+            'company_website': getattr(settings, 'COMPANY_WEBSITE', 'https://wordknox.com'),
+            'support_email': getattr(settings, 'SUPPORT_EMAIL', 'support@wordknox.com'),
         })
 
     def send(self):
-        """Enhanced send method with HTML template support"""
-        if self.template_name:
-            return self._send_html_email()
-        else:
-            # Fallback to original simple send
-            return self._send_simple_email()
+            """Enhanced send method with comprehensive error handling and logging"""
+            logger.info(f"[EMAIL] Attempting to send email to {self.recipient}")
+            logger.info(f"[EMAIL] Subject: {self.subject}")
+            logger.info(f"[EMAIL] From: {self.from_email}")
+            logger.info(f"[EMAIL] Template: {self.template_name if self.template_name else 'Plain text'}")
+            
+            # Log email configuration (without password)
+            logger.info(f"[EMAIL CONFIG] Host: {getattr(settings, 'EMAIL_HOST', 'NOT SET')}")
+            logger.info(f"[EMAIL CONFIG] Port: {getattr(settings, 'EMAIL_PORT', 'NOT SET')}")
+            logger.info(f"[EMAIL CONFIG] Use TLS: {getattr(settings, 'EMAIL_USE_TLS', 'NOT SET')}")
+            logger.info(f"[EMAIL CONFIG] Use SSL: {getattr(settings, 'EMAIL_USE_SSL', 'NOT SET')}")
+            logger.info(f"[EMAIL CONFIG] Timeout: {getattr(settings, 'EMAIL_TIMEOUT', 'NOT SET')}")
+            
+            try:
+                if self.template_name:
+                    result = self._send_html_email()
+                else:
+                    result = self._send_simple_email()
+                
+                logger.info(f"[EMAIL SUCCESS] Email sent to {self.recipient}. Result: {result}")
+                return result
+                
+            except Exception as e:
+                logger.error(f"[EMAIL ERROR] Failed to send email to {self.recipient}")
+                logger.error(f"[EMAIL ERROR] Error type: {type(e).__name__}")
+                logger.error(f"[EMAIL ERROR] Error message: {str(e)}")
+                logger.error(f"[EMAIL ERROR] Full traceback:\n{traceback.format_exc()}")
+                
+                # Try to provide more specific error information
+                if "Connection refused" in str(e):
+                    logger.error("[EMAIL ERROR] Connection refused - Check if EMAIL_HOST and EMAIL_PORT are correct")
+                elif "Authentication failed" in str(e):
+                    logger.error("[EMAIL ERROR] Authentication failed - Check EMAIL_HOST_USER and EMAIL_HOST_PASSWORD")
+                elif "timed out" in str(e).lower():
+                    logger.error("[EMAIL ERROR] Connection timed out - Check firewall settings and EMAIL_TIMEOUT")
+                elif "certificate" in str(e).lower():
+                    logger.error("[EMAIL ERROR] SSL/TLS certificate issue - Check EMAIL_USE_TLS and EMAIL_USE_SSL settings")
+                
+                raise  # Re-raise to let caller handle it
     
     def _send_html_email(self):
         """Send email with HTML template"""
         try:
+            logger.info(f"[EMAIL] Rendering HTML template: {self.template_name}")
             html_content = render_to_string(self.template_name, self.context)
             text_content = strip_tags(html_content)
             
+            logger.info(f"[EMAIL] Creating EmailMultiAlternatives message")
             msg = EmailMultiAlternatives(
                 subject=self.subject,
                 body=text_content,
@@ -50,24 +90,34 @@ class BaseEmail:
             )
             msg.attach_alternative(html_content, "text/html")
             
-            result = msg.send()
-            logger.info(f"HTML email sent to {self.recipient}: {self.subject}")
+            logger.info(f"[EMAIL] Sending HTML email via SMTP")
+            result = msg.send(fail_silently=False)
+            logger.info(f"[EMAIL] HTML email sent successfully. Result: {result}")
             return result
             
         except Exception as e:
-            logger.error(f"Failed to send HTML email to {self.recipient}: {e}")
-            # Fallback to simple email
+            logger.error(f"[EMAIL ERROR] Failed to send HTML email: {str(e)}")
+            logger.error(f"[EMAIL ERROR] Traceback:\n{traceback.format_exc()}")
+            logger.info(f"[EMAIL] Falling back to plain text email")
             return self._send_simple_email()
     
     def _send_simple_email(self):
-        """Original simple send method"""
-        return send_mail(
-            self.subject,
-            self.message,
-            self.from_email,
-            [self.recipient],
-            fail_silently=False
-        )
+        """Send plain text email"""
+        try:
+            logger.info(f"[EMAIL] Sending plain text email")
+            result = send_mail(
+                subject=self.subject,
+                message=self.message,
+                from_email=self.from_email,
+                recipient_list=[self.recipient],
+                fail_silently=False
+            )
+            logger.info(f"[EMAIL] Plain text email sent successfully. Result: {result}")
+            return result
+        except Exception as e:
+            logger.error(f"[EMAIL ERROR] Failed to send plain text email: {str(e)}")
+            logger.error(f"[EMAIL ERROR] Traceback:\n{traceback.format_exc()}")
+            raise
 
 
 
@@ -88,7 +138,7 @@ class VerifyEmail(BaseEmail):
             subject=subject,
             message=message,
             recipient=recipient,
-            template_name='emails/verify_email.html',
+            template_name='verify_email.html',
             context=context
         )
 
@@ -109,7 +159,7 @@ class RecoverPasswordEmail(BaseEmail):
             subject=subject,
             message=message,
             recipient=recipient,
-            template_name='emails/password_recovery.html',
+            template_name='password_recovery.html',
             context=context
         )
 
@@ -192,6 +242,38 @@ class ContactMessageNotification(BaseEmail):
         )
 
 
+class NewMessageNotification(BaseEmail):
+    """Notification email for new contact messages (notifications app)"""
+    def __init__(self, message, admin_email):
+        subject = f'New Contact Message from {message.sender_name} - {getattr(settings, "COMPANY_NAME", "Portfolio")}'
+        
+        # Truncate message content for email preview
+        message_preview = message.message[:200] + '...' if len(message.message) > 200 else message.message
+        
+        simple_message = f'New contact message from {message.sender_name} ({message.email}): {message_preview}'
+        
+        context = {
+            'sender_name': message.sender_name,
+            'sender_email': message.email,
+            'sender_phone': message.phone or 'Not provided',
+            'message_subject': message.get_subject_display(),
+            'message_content': message.message,
+            'word_count': message.word_count,
+            'message_id': str(message.id)[:8],
+            'message_date': timezone.localtime(message.created_at).strftime('%B %d, %Y at %I:%M %p'),
+            'ip_address': message.ip_address or 'Not captured',
+            'device': message.device[:50] + '...' if message.device and len(message.device) > 50 else (message.device or 'Not captured'),
+        }
+        
+        super().__init__(
+            subject=subject,
+            message=simple_message,
+            recipient=admin_email,
+            template_name='emails/new_message_notification.html',
+            context=context
+        )
+
+
 # Utility functions for easy usage
 def send_service_request_autoreply(service_request):
     """Send auto-reply for service request"""
@@ -208,3 +290,4 @@ def send_contact_notification(contact_message, admin_email=None):
     admin_email = admin_email or getattr(settings, 'ADMIN_EMAIL', settings.DEFAULT_FROM_EMAIL)
     email = ContactMessageNotification(contact_message, admin_email)
     return email.send()
+

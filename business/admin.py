@@ -6,7 +6,7 @@ from django.http import HttpResponseRedirect
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 from accounts.admin import BaseAdminPermissions
-from .models import ServiceRequest, Order, Testimonial, ContactMessage, Notification, Payment
+from .models import ServiceRequest, Order, Testimonial, ContactMessage, Notification, Payment, OrderActivity
 
 User = get_user_model()
 
@@ -235,3 +235,16 @@ class PaymentAdmin(BaseAdminPermissions):
     list_filter = ('method', 'status', 'currency')
     search_fields = ('order__id', 'transaction_id', 'order__client__email')
     ordering = ('-date_created',)
+
+
+@admin.register(OrderActivity)
+class OrderActivityAdmin(BaseAdminPermissions):
+    list_display = ('id', 'order', 'activity_type', 'description_short', 'created_by', 'created_at')
+    list_filter = ('activity_type', 'created_at')
+    search_fields = ('order__id', 'description', 'created_by__email')
+    readonly_fields = ('order', 'activity_type', 'description', 'created_by', 'created_at')
+    ordering = ('-created_at',)
+    
+    def description_short(self, obj):
+        return obj.description[:50] + '...' if len(obj.description) > 50 else obj.description
+    description_short.short_description = 'Description'

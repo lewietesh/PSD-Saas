@@ -281,10 +281,14 @@ class UserAdmin(BaseUserAdmin):
             'fields': ('email', 'password')
         }),
         ('Personal Information', {
-            'fields': ('first_name', 'last_name', 'phone', 'affiliate_code')
+            'fields': ('first_name', 'last_name', 'phone', 'profile_img', 'affiliate_code')
+        }),
+        ('Preferences', {
+            'fields': ('currency', 'language_preference', 'user_timezone'),
+            'classes': ['collapse']
         }),
         ('Permissions', {
-            'fields': ('role', 'is_active', 'is_staff', 'is_superuser'),
+            'fields': ('role', 'is_active', 'is_staff', 'is_superuser', 'is_verified', 'two_factor_enabled'),
             'classes': ['collapse']
         }),
         ('Important Dates', {
@@ -529,10 +533,7 @@ class ClientProfileAdmin(BaseAdminPermissions):
         return readonly_fields
 
 
-# Custom admin site configuration
-admin.site.site_header = 'Portfolio API Administration'
-admin.site.site_title = 'Portfolio API Admin'
-admin.site.index_title = 'Welcome to Portfolio API Administration'
+# Custom admin site configuration removed - now configured in settings.py via Jazzmin
 
 
 # Additional admin customizations  

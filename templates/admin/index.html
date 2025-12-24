@@ -1,0 +1,39 @@
+{% extends "admin/index.html" %}
+{% load i18n static %}
+
+{% block content %}
+{{ block.super }}
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Find the main content area
+    var content = document.querySelector('.content');
+    if (!content) return;
+    
+    // Create greeting card
+    var greetingCard = document.createElement('div');
+    greetingCard.className = 'row mb-3';
+    greetingCard.innerHTML = `
+        <div class="col-12">
+            <div class="card" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border: none;">
+                <div class="card-body" style="padding: 2rem;">
+                    <h3 style="color: white; margin: 0; font-weight: 600;">
+                        <i class="fas fa-user-circle" style="margin-right: 0.5rem;"></i>
+                        Hi, {% if user.get_full_name %}{{ user.get_full_name }}{% elif user.first_name %}{{ user.first_name }}{% else %}{{ user.email }}{% endif %}!
+                    </h3>
+                    <p style="color: rgba(255, 255, 255, 0.9); margin: 0.5rem 0 0 0; font-size: 1rem;">
+                        Welcome back to WordKnox Administration
+                    </p>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Insert greeting card at the top
+    var firstChild = content.firstElementChild;
+    if (firstChild) {
+        content.insertBefore(greetingCard, firstChild);
+    }
+});
+</script>
+{% endblock %}

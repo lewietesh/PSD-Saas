@@ -505,3 +505,43 @@ class PayPalPayment(models.Model):
 
 
 ## AccountBalance model removed; balance tracked on accounts.User
+
+
+# OrderActivity model for tracking order timeline events
+class OrderActivity(models.Model):
+    """
+    Minimal timeline tracking for orders.
+    Tracks key events like status changes, payments, messages, and file uploads.
+    """
+    ACTIVITY_TYPES = [
+        ('created', 'Order Created'),
+        ('status_change', 'Status Changed'),
+        ('payment', 'Payment Received'),
+        ('message', 'Message Sent'),
+        ('file_uploaded', 'File Uploaded'),
+    ]
+    
+    id = models.CharField(max_length=36, primary_key=True, default=uuid.uuid4, editable=False)
+    order = models.ForeignKey(
+        'Order',
+        on_delete=models.CASCADE,
+        related_name='activities'
+    )
+    activity_type = models.CharField(max_length=20, choices=ACTIVITY_TYPES)
+    description = models.TextField()
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
+    created_at = models.DateTimeField(default=timezone.now)
+    
+    class Meta:
+        db_table = 'order_activity'
+        verbose_name = 'Order Activity'
+        verbose_name_plural = 'Order Activities'
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.order.id} - {self.get_activity_type_display()}"

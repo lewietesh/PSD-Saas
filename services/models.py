@@ -54,7 +54,14 @@ class Service(models.Model):
     short_description = models.TextField(blank=True)
     
     # Media fields
-    img_url = models.TextField(blank=True)
+    service_image = models.ImageField(
+        upload_to='services/',
+        blank=True,
+        null=True,
+        validators=[validate_image_size],
+        help_text="Service card image (max 3MB). Recommended: 800x600px"
+    )
+    img_url = models.TextField(blank=True, help_text="Legacy field - use service_image instead")
     banner_url = models.TextField(blank=True)
     icon_url = models.TextField(blank=True)
     

@@ -221,8 +221,9 @@ class ServiceAdmin(BaseAdminPermissions):
             'fields': ('description', 'short_description')
         }),
         ('Media', {
-            'fields': ('img_url', 'banner_url', 'icon_url'),
-            'classes': ('collapse',)
+            'fields': ('service_image', 'img_url', 'banner_url', 'icon_url'),
+            'classes': ('collapse',),
+            'description': 'Upload service_image for best results. Legacy img_url field is deprecated.'
         }),
         ('Pricing', {
             'fields': ('pricing_model', 'starting_at', 'currency', 'timeline')
@@ -576,7 +577,4 @@ class ServiceFAQAdmin(BaseAdminPermissions):
     answer_preview.short_description = 'Answer Preview'
 
 
-# Custom admin site configuration
-admin.site.site_header = "Portfolio Services Administration"
-admin.site.site_title = "Services Admin"
-admin.site.index_title = "Services Management Dashboard"
+# Custom admin site configuration removed - now configured in settings.py via Jazzmin
