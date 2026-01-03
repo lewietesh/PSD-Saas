@@ -1,0 +1,31 @@
+{% load i18n admin_urls static %}
+
+<fieldset class="module aligned {{ fieldset.classes }}">
+	{% if fieldset.name %}
+		<h2>{{ fieldset.name }}</h2>
+	{% endif %}
+	{% if fieldset.description %}
+		<div class="description">{{ fieldset.description|safe }}</div>
+	{% endif %}
+	{% for line in fieldset %}
+		<div class="form-row{% if line.errors %} errors{% endif %}{% for field in line %}{% if field.field.name %} field-{{ field.field.name }}{% endif %}{% endfor %}">
+			{% for field in line %}
+				<div>
+					{% if field.is_checkbox %}
+						{{ field.field }}
+						{{ field.label_tag }}
+					{% else %}
+						{{ field.label_tag }}
+						{{ field.field }}
+					{% endif %}
+					{% if field.errors %}
+						<div class="errors">{{ field.errors }}</div>
+					{% endif %}
+					{% if field.help_text %}
+						<div class="help">{{ field.help_text|safe }}</div>
+					{% endif %}
+				</div>
+			{% endfor %}
+		</div>
+	{% endfor %}
+</fieldset>

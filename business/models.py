@@ -134,12 +134,27 @@ class Order(models.Model):
         editable=False
     )
     
+    # Human-readable order tracking number (e.g., "ORD-20260101-0001")
+    order_number = models.CharField(
+        max_length=50,
+        unique=True,
+        help_text="Unique order tracking number for customer-facing identification"
+    )
+    
     # Relationships
     client = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name='client_orders',
         limit_choices_to={'role': 'client'}
+    )
+    assigned_partner = models.ForeignKey(
+        'accounts.Partner',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='assigned_orders',
+        help_text="Partner/Agent assigned to handle this order"
     )
     service = models.ForeignKey(
         'services.Service',
@@ -212,10 +227,18 @@ class Order(models.Model):
             models.Index(fields=['client']),
             models.Index(fields=['status']),
             models.Index(fields=['payment_status']),
+            models.Index(fields=['order_number']),
         ]
     
     def __str__(self):
-        return f"Order {self.id[:8]} - {self.client.email}"
+        return f"{self.order_number or f'Order-{self.id[:8]}'} - {self.client.email}"
+    
+    def save(self, *args, **kwargs):
+        """Auto-generate order_number if not set"""
+        if not self.order_number:
+            from .utils import generate_order_number
+            self.order_number = generate_order_number()
+        super().save(*args, **kwargs)
     
     def add_attachment(self, filename):
         """Add a filename to the attachments array"""
@@ -251,6 +274,101 @@ class Order(models.Model):
 
         return [os.path.join(settings.MEDIA_ROOT, 'orders', 'work_results', filename) 
                 for filename in self.work_results]
+    
+    def get_deadline_status(self, user_timezone='UTC'):
+        """
+        Calculate deadline status relative to client's timezone
+        Returns dict with status info for frontend display
+        """
+        from datetime import datetime, timedelta
+        import pytz
+        
+        if not self.due_date:
+            return {
+                'has_deadline': False,
+                'status': 'none',
+                'message': 'No deadline set',
+                'days_remaining': None,
+                'is_overdue': False,
+                'color': 'gray'
+            }
+        
+        try:
+            # Get user timezone
+            tz = pytz.timezone(user_timezone)
+        except:
+            tz = pytz.UTC
+        
+        # Get current time in user's timezone
+        now = timezone.now().astimezone(tz)
+        
+        # Convert due_date to datetime in user's timezone (end of day)
+        due_datetime = timezone.datetime.combine(
+            self.due_date, 
+            timezone.datetime.max.time()
+        ).replace(tzinfo=tz)
+        
+        # Calculate difference
+        diff = due_datetime - now
+        days_remaining = diff.days
+        hours_remaining = diff.seconds // 3600
+        
+        # Determine status
+        if days_remaining < 0:
+            return {
+                'has_deadline': True,
+                'status': 'overdue',
+                'message': f'Overdue by {abs(days_remaining)} day{"s" if abs(days_remaining) != 1 else ""}',
+                'days_remaining': days_remaining,
+                'is_overdue': True,
+                'color': 'red'
+            }
+        elif days_remaining == 0:
+            if hours_remaining > 0:
+                return {
+                    'has_deadline': True,
+                    'status': 'due_today',
+                    'message': f'Due today ({hours_remaining}h left)',
+                    'days_remaining': 0,
+                    'is_overdue': False,
+                    'color': 'orange'
+                }
+            else:
+                return {
+                    'has_deadline': True,
+                    'status': 'overdue',
+                    'message': 'Overdue',
+                    'days_remaining': 0,
+                    'is_overdue': True,
+                    'color': 'red'
+                }
+        elif days_remaining == 1:
+            return {
+                'has_deadline': True,
+                'status': 'urgent',
+                'message': '1 day left',
+                'days_remaining': 1,
+                'is_overdue': False,
+                'color': 'yellow'
+            }
+        elif days_remaining <= 3:
+            return {
+                'has_deadline': True,
+                'status': 'approaching',
+                'message': f'{days_remaining} days left',
+                'days_remaining': days_remaining,
+                'is_overdue': False,
+                'color': 'yellow'
+            }
+        else:
+            return {
+                'has_deadline': True,
+                'status': 'normal',
+                'message': f'{days_remaining} days left',
+                'days_remaining': days_remaining,
+                'is_overdue': False,
+                'color': 'green'
+            }
 
 
 class Testimonial(models.Model):
@@ -391,73 +509,6 @@ class Notification(models.Model):
     def __str__(self):
         return f"{self.type.title()} notification: {self.title}"
 
-
-class ContactMessage(models.Model):
-    """
-    Contact form submissions for lead capture
-    """
-    
-    SOURCE_CHOICES = [
-        ('website', 'Website'),
-        ('whatsapp', 'WhatsApp'),
-        ('referral', 'Referral'),
-        ('social_media', 'Social Media'),
-    ]
-    
-    PRIORITY_CHOICES = [
-        ('low', 'Low'),
-        ('medium', 'Medium'),
-        ('high', 'High'),
-    ]
-    
-    # Primary fields
-    id = models.CharField(
-        max_length=36, 
-        primary_key=True, 
-        default=uuid.uuid4,
-        editable=False
-    )
-    
-    # Contact information
-    name = models.CharField(max_length=255)
-    email = models.EmailField()
-    phone = models.CharField(max_length=20, blank=True)
-    
-    # Message content
-    subject = models.CharField(max_length=255, blank=True)
-    message = models.TextField()
-    
-    # Tracking fields
-    source = models.CharField(
-        max_length=50,
-        choices=SOURCE_CHOICES,
-        default='website'
-    )
-    is_read = models.BooleanField(default=False)
-    replied = models.BooleanField(default=False)
-    priority = models.CharField(
-        max_length=10,
-        choices=PRIORITY_CHOICES,
-        default='medium'
-    )
-    
-    # Timestamp
-    date_created = models.DateTimeField(default=timezone.now)
-    
-    class Meta:
-        db_table = 'contact_message'
-        verbose_name = 'Contact Message'
-        verbose_name_plural = 'Contact Messages'
-        ordering = ['-date_created']
-        indexes = [
-            models.Index(fields=['is_read']),
-            models.Index(fields=['replied']),
-            models.Index(fields=['priority']),
-            models.Index(fields=['source']),
-        ]
-    
-    def __str__(self):
-        return f"Contact from {self.name} - {self.subject}"
 
 class Payment(models.Model):
     id = models.CharField(max_length=36, primary_key=True, default=uuid.uuid4, editable=False)

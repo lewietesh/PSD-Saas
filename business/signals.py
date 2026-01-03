@@ -2,25 +2,28 @@
 from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 from .models import Order, OrderActivity, Payment
-from notifications.models import Message
+from notifications.models import Conversation, Message
 
 
 @receiver(post_save, sender=Order)
-def create_order_message_thread(sender, instance, created, **kwargs):
+def create_order_conversation(sender, instance, created, **kwargs):
     """
-    Automatically create a message thread when a new order is created.
+    Automatically create a Conversation when a new order is created.
     This enables communication between client and admin for the order.
     """
     if created:
+        # Create the conversation for this order
+        conversation = Conversation.create_for_order(instance)
+        
+        # Create initial system message in the conversation
         Message.objects.create(
+            conversation=conversation,
             message_type='order',
             order=instance,
-            sender_name=instance.client.full_name or instance.client.email,
-            email=instance.client.email,
-            subject='order',
-            message=f'Order #{instance.id} has been created. You can use this thread to communicate about your order.',
-            user_id=instance.client,
-            status='open'
+            user=instance.client,
+            sender='system',
+            content=f'Order #{instance.order_number} has been created. You can use this thread to communicate about your order.',
+            is_read=True  # System messages start as read
         )
         
         # Create initial timeline activity

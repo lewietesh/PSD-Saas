@@ -38,6 +38,7 @@ ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '.ngrok.io', '.ngrok-free.app', '77a3
 INSTALLED_APPS = [
     # Third-party apps 
     'jazzmin',
+    'django_ckeditor_5',
     'corsheaders',
     'dj_rest_auth',
     'social_django',
@@ -70,13 +71,14 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-            'corsheaders.middleware.CorsMiddleware',  # Add this for CORS
+    'corsheaders.middleware.CorsMiddleware',  # Add this for CORS
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     # 'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'wordknox.middleware.SessionTimeoutMiddleware',  # Custom session timeout
 ]
 
 ROOT_URLCONF = 'wordknox.urls'
@@ -153,6 +155,9 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 STATIC_ROOT= os.path.join(BASE_DIR,'staticfiles')
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, 'static'),
+]
 # Media files (profile images, uploads)
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
@@ -186,6 +191,18 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,
+    # Rate limiting / Throttling for API abuse prevention
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '30/minute',           # General anonymous API rate
+        'user': '120/minute',          # Authenticated user API rate
+        'anon_chat_read': '30/minute', # Anonymous chat - reading messages (more permissive)
+        'anon_chat_write': '10/minute',# Anonymous chat - sending messages (stricter)
+        'user_chat': '60/minute',      # Authenticated chat messages
+    }
 }
 # CORS Configuration (for frontend)
 CORS_ALLOWED_ORIGINS = [
@@ -261,6 +278,20 @@ EMAIL_TIMEOUT = 10
 # For API testing - disable CSRF on API endpoints
 CSRF_COOKIE_SECURE = False
 CSRF_COOKIE_HTTPONLY = False
+
+
+# ==================== SESSION CONFIGURATION ====================
+# Session timeout - 5 minutes of inactivity for admin panel
+SESSION_COOKIE_AGE = 300  # 5 minutes in seconds
+SESSION_SAVE_EVERY_REQUEST = True  # Reset expiry on every request (activity tracking)
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True  # Clear session when browser closes
+SESSION_COOKIE_HTTPONLY = True  # Prevent JavaScript access to session cookie
+SESSION_COOKIE_SECURE = False  # Set to True in production with HTTPS
+SESSION_COOKIE_SAMESITE = 'Lax'  # CSRF protection
+
+# Clear expired sessions automatically
+SESSION_ENGINE = 'django.contrib.sessions.backends.db'  # Store in database
+# Run: python manage.py clearsessions periodically to remove expired sessions
 
 
 #  Add cache configuration for verification codes
@@ -422,25 +453,21 @@ JAZZMIN_SETTINGS = {
     ],
     
     # UI Tweaks
-    "changeform_format": "horizontal_tabs",
-    "changeform_format_overrides": {
-        "auth.user": "collapsible", 
-        "auth.group": "vertical_tabs"
-    },
-    
+    "changeform_format": "horizontal_tabs",  # force tabs on change forms
+    "changeform_format_overrides": {},  # no per-model overrides that hide tabs
+
     # Related modal
     "related_modal_active": False,
-    
-    # Custom CSS/JS - Using built-in Jazzmin theming instead
-    "custom_css": None,
-    "custom_js": None,
-    
+
+    # Custom CSS/JS for admin notifications - TEMPORARILY DISABLED TO DEBUG
+    # "custom_css": "admin/css/notifications.css",
+    # "custom_js": "admin/js/notifications.js",
+
     # Show/hide language chooser
-    "show_ui_builder": True,  # Temporarily enable to test color schemes
-    
+    "show_ui_builder": False,
+
     # Use custom theme
     "use_google_fonts_cdn": True,
-    "show_ui_builder": False,
 }
 
 JAZZMIN_UI_TWEAKS = {
@@ -541,3 +568,175 @@ LOGGING = {
         },
     },
 }
+
+# ==================== CKEDITOR 5 CONFIGURATION ====================
+# CKEditor 5 configuration for blog posts - optimized for code tutorials and rich content
+CKEDITOR_5_CONFIGS = {
+    'default': {
+        'toolbar': [
+            'heading', '|',
+            'bold', 'italic', 'underline', 'strikethrough', '|',
+            'link', 'imageUpload', 'blockQuote', 'codeBlock', '|',
+            'bulletList', 'numberedList', 'outdent', 'indent', '|',
+            'insertTable', 'tableColumn', 'tableRow', 'mergeTableCells', '|',
+            'undo', 'redo', 'showBlocks'
+        ],
+        'image': {
+            'toolbar': ['imageTextAlternative', 'imageStyle:full', 'imageStyle:side'],
+            'resizeUnit': 'px',
+            'resizeOptions': [
+                {'name': 'resizeImage:original', 'value': None},
+                {'name': 'resizeImage:50', 'value': '50'},
+                {'name': 'resizeImage:75', 'value': '75'},
+                {'name': 'resizeImage:100', 'value': '100'}
+            ]
+        },
+        'table': {
+            'contentToolbar': ['tableColumn', 'tableRow', 'mergeTableCells']
+        },
+        'codeBlock': {
+            'languages': [
+                {'language': 'python', 'label': 'Python'},
+                {'language': 'javascript', 'label': 'JavaScript'},
+                {'language': 'typescript', 'label': 'TypeScript'},
+                {'language': 'java', 'label': 'Java'},
+                {'language': 'csharp', 'label': 'C#'},
+                {'language': 'cpp', 'label': 'C++'},
+                {'language': 'go', 'label': 'Go'},
+                {'language': 'rust', 'label': 'Rust'},
+                {'language': 'php', 'label': 'PHP'},
+                {'language': 'ruby', 'label': 'Ruby'},
+                {'language': 'html', 'label': 'HTML'},
+                {'language': 'css', 'label': 'CSS'},
+                {'language': 'sql', 'label': 'SQL'},
+                {'language': 'bash', 'label': 'Bash'},
+                {'language': 'json', 'label': 'JSON'},
+                {'language': 'yaml', 'label': 'YAML'},
+                {'language': 'xml', 'label': 'XML'},
+            ]
+        },
+        'link': {
+            'decorators': {
+                'openInNewTab': {
+                    'mode': 'manual',
+                    'label': 'Open in new tab',
+                    'defaultValue': True,
+                    'attributes': {'target': '_blank', 'rel': 'noopener noreferrer'}
+                }
+            }
+        },
+    },    'extends': {
+        'blockToolbar': [
+            'paragraph', 'heading1', 'heading2', 'heading3',
+            '|',
+            'bulletedList', 'numberedList',
+            '|',
+            'blockQuote', 'codeBlock'
+        ],
+        'toolbar': ['heading', '|', 'outdent', 'indent', '|', 'bold', 'italic', 'link', 'underline', 'strikethrough',
+        'code','subscript', 'superscript', 'highlight', '|', 'codeBlock', 'sourceEditing', 'insertImage',
+                    'bulletedList', 'numberedList', 'todoList', '|',  'blockQuote', 'imageUpload', '|',
+                    'fontSize', 'fontFamily', 'fontColor', 'fontBackgroundColor', 'mediaEmbed', 'removeFormat',
+                    'insertTable',],
+        'image': {
+            'toolbar': ['imageTextAlternative', '|', 'imageStyle:alignLeft',
+                        'imageStyle:alignRight', 'imageStyle:alignCenter', 'imageStyle:side',  '|'],
+            'styles': [
+                'full',
+                'side',
+                'alignLeft',
+                'alignRight',
+                'alignCenter',
+            ]
+        },
+        'table': {
+            'contentToolbar': ['tableColumn', 'tableRow', 'mergeTableCells',
+                               'tableProperties', 'tableCellProperties'],
+        },
+        'heading' : {
+            'options': [
+                { 'model': 'paragraph', 'title': 'Paragraph', 'class': 'ck-heading_paragraph' },
+                { 'model': 'heading1', 'view': 'h1', 'title': 'Heading 1', 'class': 'ck-heading_heading1' },
+                { 'model': 'heading2', 'view': 'h2', 'title': 'Heading 2', 'class': 'ck-heading_heading2' },
+                { 'model': 'heading3', 'view': 'h3', 'title': 'Heading 3', 'class': 'ck-heading_heading3' }
+            ]
+        },
+        'codeBlock': {
+            'languages': [
+                {'language': 'python', 'label': 'Python'},
+                {'language': 'javascript', 'label': 'JavaScript'},
+                {'language': 'typescript', 'label': 'TypeScript'},
+                {'language': 'java', 'label': 'Java'},
+                {'language': 'csharp', 'label': 'C#'},
+                {'language': 'cpp', 'label': 'C++'},
+                {'language': 'go', 'label': 'Go'},
+                {'language': 'rust', 'label': 'Rust'},
+                {'language': 'php', 'label': 'PHP'},
+                {'language': 'ruby', 'label': 'Ruby'},
+                {'language': 'html', 'label': 'HTML'},
+                {'language': 'css', 'label': 'CSS'},
+                {'language': 'sql', 'label': 'SQL'},
+                {'language': 'bash', 'label': 'Bash'},
+                {'language': 'json', 'label': 'JSON'},
+                {'language': 'yaml', 'label': 'YAML'},
+                {'language': 'xml', 'label': 'XML'},
+            ]
+        }
+    },    'blog': {
+        'toolbar': [
+            'heading', '|',
+            'bold', 'italic', 'underline', 'strikethrough', '|',
+            'link', 'imageUpload', 'blockQuote', 'codeBlock', '|',
+            'bulletList', 'numberedList', 'outdent', 'indent', '|',
+            'insertTable', 'tableColumn', 'tableRow', 'mergeTableCells', '|',
+            'undo', 'redo'
+        ],
+        'image': {
+            'toolbar': ['imageTextAlternative', 'imageStyle:full', 'imageStyle:side'],
+            'resizeUnit': 'px',
+            'resizeOptions': [
+                {'name': 'resizeImage:original', 'value': None},
+                {'name': 'resizeImage:50', 'value': '50'},
+                {'name': 'resizeImage:75', 'value': '75'},
+                {'name': 'resizeImage:100', 'value': '100'}
+            ]
+        },
+        'table': {
+            'contentToolbar': ['tableColumn', 'tableRow', 'mergeTableCells']
+        },
+        'codeBlock': {
+            'languages': [
+                {'language': 'python', 'label': 'Python'},
+                {'language': 'javascript', 'label': 'JavaScript'},
+                {'language': 'typescript', 'label': 'TypeScript'},
+                {'language': 'java', 'label': 'Java'},
+                {'language': 'csharp', 'label': 'C#'},
+                {'language': 'cpp', 'label': 'C++'},
+                {'language': 'go', 'label': 'Go'},
+                {'language': 'rust', 'label': 'Rust'},
+                {'language': 'php', 'label': 'PHP'},
+                {'language': 'ruby', 'label': 'Ruby'},
+                {'language': 'html', 'label': 'HTML'},
+                {'language': 'css', 'label': 'CSS'},
+                {'language': 'sql', 'label': 'SQL'},
+                {'language': 'bash', 'label': 'Bash'},
+                {'language': 'json', 'label': 'JSON'},
+                {'language': 'yaml', 'label': 'YAML'},
+                {'language': 'xml', 'label': 'XML'},
+            ]
+        },
+        'link': {
+            'decorators': {
+                'openInNewTab': {
+                    'mode': 'manual',
+                    'label': 'Open in new tab',
+                    'defaultValue': True,
+                    'attributes': {'target': '_blank', 'rel': 'noopener noreferrer'}
+                }
+            }
+        }
+    }
+}
+
+# Media upload path for CKEditor 5
+CKEDITOR_5_UPLOAD_PATH = 'blog/uploads/'

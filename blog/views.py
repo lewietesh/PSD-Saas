@@ -278,7 +278,7 @@ class BlogCommentViewSet(viewsets.ModelViewSet):
     queryset = BlogComment.objects.all()
     serializer_class = BlogCommentSerializer
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
-    filterset_fields = ['blogpost', 'approved', 'parent']
+    filterset_fields = ['blogpost', 'approved', 'parent', 'featured']
     ordering_fields = ['date_created']
     ordering = ['-date_created']
     
@@ -370,6 +370,26 @@ class BlogCommentViewSet(viewsets.ModelViewSet):
         
         serializer = self.get_serializer(pending_comments, many=True)
         return Response(serializer.data)
+
+    @action(detail=True, methods=['post'])
+    def feature(self, request, pk=None):
+        """Mark a comment as featured (admin only)"""
+        if not request.user.is_staff:
+            return Response({'detail': 'Permission denied.'}, status=status.HTTP_403_FORBIDDEN)
+        comment = self.get_object()
+        comment.featured = True
+        comment.save(update_fields=['featured'])
+        return Response({'detail': f'Comment by {comment.name} is now featured.'}, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['post'])
+    def unfeature(self, request, pk=None):
+        """Remove featured flag from a comment (admin only)"""
+        if not request.user.is_staff:
+            return Response({'detail': 'Permission denied.'}, status=status.HTTP_403_FORBIDDEN)
+        comment = self.get_object()
+        comment.featured = False
+        comment.save(update_fields=['featured'])
+        return Response({'detail': f'Comment by {comment.name} is no longer featured.'}, status=status.HTTP_200_OK)
 
 
 # Simple API views for specific use cases

@@ -20,11 +20,11 @@ from django_filters.rest_framework import DjangoFilterBackend
 
 # Local imports
 from accounts.permissions import IsDeveloperOrAdmin, IsOwnerOrReadOnly, IsClientOwner
-from .models import ServiceRequest, Order, Testimonial, ContactMessage, Payment, Notification
+from .models import ServiceRequest, Order, Testimonial, Payment, Notification
 from .serializers import (
     ServiceRequestSerializer, OrderCreateSerializer, OrderListSerializer, OrderDetailSerializer,
     TestimonialCreateSerializer, TestimonialListSerializer,
-    ContactMessageSerializer, PaymentSerializer, NotificationSerializer,
+    PaymentSerializer, NotificationSerializer,
     BulkOrderStatusUpdateSerializer, OrderStatsSerializer
 )
 from .utils import (
@@ -34,7 +34,7 @@ from .utils import (
     export_orders_to_csv, validate_order_transition, send_status_update_notification,
     mark_notifications_as_read
 )
-from .filters import OrderFilter, ContactMessageFilter, TestimonialFilter
+from .filters import OrderFilter, TestimonialFilter
 
 User = get_user_model()
 
@@ -120,7 +120,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         """
         Set permissions based on action
         """
-        if self.action in ['create', 'list', 'retrieve']:
+        if self.action in ['create', 'list', 'retrieve', 'statistics', 'timeline']:
             permission_classes = [IsAuthenticated]
         elif self.action in ['update', 'partial_update', 'destroy']:
             permission_classes = [IsDeveloperOrAdmin]
@@ -309,11 +309,13 @@ class OrderViewSet(viewsets.ModelViewSet):
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
-    @action(detail=False, methods=['get'], permission_classes=[IsDeveloperOrAdmin])
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
     def statistics(self, request):
         """
-        Get comprehensive order statistics
+        Get comprehensive order statistics (available to all authenticated users for their own data)
         """
+        user = request.user
+        
         # Date filtering
         date_from = request.query_params.get('date_from')
         date_to = request.query_params.get('date_to')
@@ -323,10 +325,84 @@ class OrderViewSet(viewsets.ModelViewSet):
         if date_to:
             date_to = datetime.strptime(date_to, '%Y-%m-%d').date()
         
-        stats = get_order_stats(date_from, date_to)
+        # Filter orders based on user role
+        if user.role == 'client':
+            orders_queryset = Order.objects.filter(client=user)
+        else:
+            orders_queryset = Order.objects.all()
         
-        serializer = OrderStatsSerializer(stats)
-        return Response(serializer.data)
+        # Apply date filters
+        if date_from:
+            orders_queryset = orders_queryset.filter(date_created__gte=date_from)
+        if date_to:
+            orders_queryset = orders_queryset.filter(date_created__lte=date_to)
+        
+        # Calculate statistics
+        from django.db.models import Sum, Avg, Count
+        
+        total_orders = orders_queryset.count()
+        orders_by_status = orders_queryset.values('status').annotate(count=Count('id'))
+        
+        # Total value and average
+        total_value = orders_queryset.aggregate(total=Sum('total_amount'))['total'] or 0
+        avg_value = orders_queryset.aggregate(avg=Avg('total_amount'))['avg'] or 0
+        
+        # Get the most common currency
+        currency_data = orders_queryset.values('currency').annotate(count=Count('id')).order_by('-count').first()
+        currency = currency_data['currency'] if currency_data else 'USD'
+        
+        # Recent activity (last 7 days)
+        week_ago = timezone.now() - timedelta(days=7)
+        recent_activity = []
+        for i in range(7):
+            date = (timezone.now() - timedelta(days=i)).date()
+            count = orders_queryset.filter(date_created__date=date).count()
+            recent_activity.append({
+                'date': date.isoformat(),
+                'count': count
+            })
+        recent_activity.reverse()
+        
+        # Determine trend (compare with previous period)
+        if date_from and date_to:
+            period_days = (date_to - date_from).days
+            previous_start = date_from - timedelta(days=period_days)
+            previous_value = Order.objects.filter(
+                client=user if user.role == 'client' else None,
+                date_created__gte=previous_start,
+                date_created__lt=date_from
+            ).aggregate(total=Sum('total_amount'))['total'] or 0
+            
+            if previous_value > 0:
+                trend_percentage = ((total_value - previous_value) / previous_value) * 100
+                if trend_percentage > 5:
+                    value_trend = 'up'
+                elif trend_percentage < -5:
+                    value_trend = 'down'
+                else:
+                    value_trend = 'stable'
+            else:
+                value_trend = 'up' if total_value > 0 else 'stable'
+                trend_percentage = 0
+        else:
+            value_trend = 'stable'
+            trend_percentage = 0
+        
+        stats = {
+            'total_orders': total_orders,
+            'pending_orders': orders_queryset.filter(status='pending').count(),
+            'in_progress_orders': orders_queryset.filter(status='in_progress').count(),
+            'completed_orders': orders_queryset.filter(status='completed').count(),
+            'total_value': float(total_value),
+            'average_order_value': float(avg_value),
+            'currency': currency,
+            'value_trend': value_trend,
+            'trend_percentage': float(trend_percentage) if trend_percentage else 0,
+            'orders_by_status': {item['status']: item['count'] for item in orders_by_status},
+            'recent_activity': recent_activity
+        }
+        
+        return Response(stats)
     
     @action(detail=False, methods=['get'], permission_classes=[IsDeveloperOrAdmin])
     def export_csv(self, request):
@@ -582,30 +658,6 @@ class OrderViewSet(viewsets.ModelViewSet):
             'timeline': timeline_data,
             'count': len(timeline_data)
         })
-
-
-class ContactMessageViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet for managing contact messages.
-    Anyone can create messages, only admins can manage them.
-    """
-    queryset = ContactMessage.objects.all()
-    serializer_class = ContactMessageSerializer
-    filterset_class = ContactMessageFilter
-    filter_backends = [DjangoFilterBackend]
-    
-    def get_permissions(self):
-        """
-        Allow anyone to create contact messages, restrict other actions
-        """
-        if self.action == 'create':
-            permission_classes = [permissions.AllowAny]
-        else:
-            permission_classes = [IsDeveloperOrAdmin]
-        
-        return [permission() for permission in permission_classes]
-    
-    def perform_create(self, serializer):
         """
         Custom contact message creation with validation and notifications
         """

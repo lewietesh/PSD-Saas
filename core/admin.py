@@ -517,9 +517,3 @@ class FAQAdmin(BaseAdminPermissions):
             return f"{obj.question[:80]}..."
         return obj.question
     question_preview.short_description = 'Question'
-
-
-# Admin site customization
-# admin.site.site_header = "Portfolio API Administration"
-# admin.site.site_title = "Portfolio Admin"
-# admin.site.index_title = "Welcome to Portfolio Administration"

@@ -4,12 +4,26 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 
+# Import custom admin views
+from notifications import admin_views as notification_admin_views
+
 # API version prefix
 API_VERSION = 'v1'
 
 urlpatterns = [
+    # Custom Admin Reply View for Messages (MUST be before admin.site.urls)
+    path('admin/notifications/message/<uuid:message_id>/reply/', 
+         notification_admin_views.reply_to_message, 
+         name='admin_reply_to_message'),
+    path('admin/notifications/quick-reply/', 
+         notification_admin_views.quick_reply_api, 
+         name='admin_quick_reply'),
+    
     # Django Admin
     path('admin/', admin.site.urls),
+    
+    # CKEditor 5 URLs for file uploads
+    path('ckeditor5/', include('django_ckeditor_5.urls')),
     
     # API v1 Endpoints
     path(f'api/{API_VERSION}/accounts/', include('accounts.urls')),

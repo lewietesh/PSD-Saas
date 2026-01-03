@@ -6,6 +6,7 @@ from django.utils.text import slugify
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator
+from django_ckeditor_5.fields import CKEditor5Field
 
 
 def validate_blog_image_size(file):
@@ -79,7 +80,10 @@ class BlogPost(models.Model):
     
     # Content fields
     excerpt = models.TextField(help_text="Short description for previews")
-    content = models.TextField(help_text="Full blog post content")
+    content = CKEditor5Field(
+        default='',
+        help_text="Full blog post content - supports rich text, code snippets, and images"
+    )
     featured_image = models.ImageField(
         upload_to='blog/featured/',
         blank=True,
@@ -215,6 +219,10 @@ class BlogComment(models.Model):
     
     # Moderation
     approved = models.BooleanField(default=False)
+    featured = models.BooleanField(
+        default=False,
+        help_text="Pinned/featured comment for highlighting on the article page"
+    )
     
     # Timestamp
     date_created = models.DateTimeField(default=timezone.now)
@@ -228,6 +236,7 @@ class BlogComment(models.Model):
             models.Index(fields=['blogpost']),
             models.Index(fields=['approved']),
             models.Index(fields=['parent']),
+            models.Index(fields=['featured']),
         ]
     
     def __str__(self):

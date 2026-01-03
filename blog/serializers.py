@@ -84,12 +84,13 @@ class BlogCommentSerializer(serializers.ModelSerializer):
             'website', 
             'message', 
             'approved',
+            'featured',
             'is_reply',
             'parent',
             'replies',
             'date_created'
         ]
-        read_only_fields = ['id', 'date_created', 'is_reply', 'replies']
+        read_only_fields = ['id', 'date_created', 'is_reply', 'replies', 'featured']
     
     def get_replies(self, obj):
         """Get approved replies to this comment"""
@@ -206,8 +207,10 @@ class BlogPostDetailSerializer(serializers.ModelSerializer):
     author = AuthorSerializer(read_only=True)
     tags = TagListSerializer(many=True, read_only=True)
     comments = serializers.SerializerMethodField()
+    featured_comments = serializers.SerializerMethodField()
     comments_count = serializers.SerializerMethodField()
     reading_time = serializers.SerializerMethodField()
+    sanitized_content = serializers.SerializerMethodField()
     
     class Meta:
         model = BlogPost
@@ -216,7 +219,8 @@ class BlogPostDetailSerializer(serializers.ModelSerializer):
             'title', 
             'slug', 
             'excerpt',
-            'content', 
+            'content',
+            'sanitized_content',
             'featured_image',
             'author',
             'tags',
@@ -226,19 +230,34 @@ class BlogPostDetailSerializer(serializers.ModelSerializer):
             'view_count',
             'featured',
             'comments',
+            'featured_comments',
             'comments_count',
             'reading_time',
             'date_created',
             'date_updated'
         ]
     
+    def get_sanitized_content(self, obj):
+        """Return sanitized HTML content for safe frontend rendering"""
+        from .utils import sanitize_html
+        return sanitize_html(obj.content) if obj.content else ''
+    
     def get_comments(self, obj):
         """Get approved top-level comments with replies"""
         top_level_comments = obj.comments.filter(
             approved=True, 
             parent=None
-        ).order_by('date_created')
+        ).order_by('-featured', 'date_created')
         return BlogCommentSerializer(top_level_comments, many=True, context=self.context).data
+
+    def get_featured_comments(self, obj):
+        """Get featured comments for highlighting"""
+        featured = obj.comments.filter(
+            approved=True,
+            featured=True,
+            parent=None
+        ).order_by('date_created')
+        return BlogCommentSerializer(featured, many=True, context=self.context).data
     
     def get_comments_count(self, obj):
         """Return count of approved comments"""
@@ -435,8 +454,10 @@ class PublicBlogPostDetailSerializer(serializers.ModelSerializer):
     author_name = serializers.SerializerMethodField()
     tags = TagListSerializer(many=True, read_only=True)
     comments = serializers.SerializerMethodField()
+    featured_comments = serializers.SerializerMethodField()
     comments_count = serializers.SerializerMethodField()
     reading_time = serializers.SerializerMethodField()
+    sanitized_content = serializers.SerializerMethodField()
     
     class Meta:
         model = BlogPost
@@ -446,6 +467,7 @@ class PublicBlogPostDetailSerializer(serializers.ModelSerializer):
             'slug',
             'excerpt',
             'content',
+            'sanitized_content',
             'featured_image',
             'author_name',
             'tags',
@@ -454,10 +476,16 @@ class PublicBlogPostDetailSerializer(serializers.ModelSerializer):
             'view_count',
             'featured',
             'comments',
+            'featured_comments',
             'comments_count',
             'reading_time',
             'date_created'
         ]
+    
+    def get_sanitized_content(self, obj):
+        """Return sanitized HTML content for safe frontend rendering"""
+        from .utils import sanitize_html
+        return sanitize_html(obj.content) if obj.content else ''
     
     def get_author_name(self, obj):
         """Return author's display name"""
@@ -470,8 +498,17 @@ class PublicBlogPostDetailSerializer(serializers.ModelSerializer):
         top_level_comments = obj.comments.filter(
             approved=True,
             parent=None
-        ).order_by('date_created')
+        ).order_by('-featured', 'date_created')
         return BlogCommentSerializer(top_level_comments, many=True, context=self.context).data
+
+    def get_featured_comments(self, obj):
+        """Get featured comments for highlighting"""
+        featured = obj.comments.filter(
+            approved=True,
+            featured=True,
+            parent=None
+        ).order_by('date_created')
+        return BlogCommentSerializer(featured, many=True, context=self.context).data
     
     def get_comments_count(self, obj):
         """Return count of approved comments"""

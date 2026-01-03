@@ -6,7 +6,7 @@ from django.http import HttpResponseRedirect
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 from accounts.admin import BaseAdminPermissions
-from .models import ServiceRequest, Order, Testimonial, ContactMessage, Notification, Payment, OrderActivity
+from .models import ServiceRequest, Order, Testimonial, Notification, Payment, OrderActivity
 
 User = get_user_model()
 
@@ -85,16 +85,20 @@ class ServiceRequestAdmin(BaseAdminPermissions):
 
 @admin.register(Order)
 class OrderAdmin(BaseAdminPermissions):
-    list_display = ('id', 'client', 'service', 'product', 'status', 'payment_status', 'total_amount', 'attachment_count', 'work_result_count', 'date_created')
-    list_filter = ('status', 'payment_status', 'currency', 'date_created')
+    list_display = ('id', 'client', 'service', 'product', 'status', 'payment_status', 'assigned_partner', 'total_amount', 'attachment_count', 'work_result_count', 'date_created')
+    list_filter = ('status', 'payment_status', 'assigned_partner', 'currency', 'date_created')
     search_fields = ('id', 'client__email', 'service__name', 'product__name')
     readonly_fields = ('date_created', 'date_updated', 'attachments_display', 'work_results_display')
     ordering = ('-date_created',)
-    actions = ['clear_attachments', 'clear_work_results']
+    actions = ['clear_attachments', 'clear_work_results', 'assign_partner']
     
     fieldsets = (
         ('Order Information', {
             'fields': ('client', 'service', 'product', 'pricing_tier', 'total_amount', 'currency')
+        }),
+        ('Assignment', {
+            'fields': ('assigned_partner',),
+            'description': 'Assign a partner/agent to handle this order'
         }),
         ('Status', {
             'fields': ('status', 'payment_status', 'payment_method', 'transaction_id')
@@ -204,20 +208,54 @@ class OrderAdmin(BaseAdminPermissions):
         self.message_user(request, f"Cleared work results from {cleared_count} order(s).", messages.SUCCESS)
     clear_work_results.short_description = "Clear all work results"
 
+    def assign_partner(self, request, queryset):
+        """Bulk assign partner to selected orders via intermediary page"""
+        from django import forms
+        from accounts.models import Partner
+        
+        # Form for partner selection
+        class PartnerAssignmentForm(forms.Form):
+            partner = forms.ModelChoiceField(
+                queryset=Partner.objects.filter(is_active=True),
+                required=True,
+                label="Select Partner",
+                help_text="Choose a partner to assign to the selected orders"
+            )
+        
+        # If form submitted with partner selection
+        if 'apply' in request.POST:
+            form = PartnerAssignmentForm(request.POST)
+            if form.is_valid():
+                partner = form.cleaned_data['partner']
+                updated_count = queryset.update(assigned_partner=partner)
+                self.message_user(
+                    request,
+                    f"Successfully assigned {partner.user.get_full_name() or partner.user.email} to {updated_count} order(s).",
+                    messages.SUCCESS
+                )
+                return None  # Return to change list
+        else:
+            form = PartnerAssignmentForm()
+        
+        # Render intermediary page
+        from django.template.response import TemplateResponse
+        context = {
+            'form': form,
+            'orders': queryset,
+            'action_name': 'assign_partner',
+            'opts': self.model._meta,
+            'media': self.media,
+        }
+        return TemplateResponse(request, 'admin/assign_partner.html', context)
+    
+    assign_partner.short_description = "Assign partner to selected orders"
+
 
 @admin.register(Testimonial)
 class TestimonialAdmin(BaseAdminPermissions):
     list_display = ('id', 'client', 'approved', 'featured', 'rating', 'date_created')
     list_filter = ('approved', 'featured', 'rating')
     search_fields = ('client__email', 'content')
-    ordering = ('-date_created',)
-
-
-@admin.register(ContactMessage)
-class ContactMessageAdmin(BaseAdminPermissions):
-    list_display = ('id', 'name', 'email', 'subject', 'priority', 'source', 'is_read', 'replied', 'date_created')
-    list_filter = ('priority', 'source', 'is_read', 'replied', 'date_created')
-    search_fields = ('name', 'email', 'subject', 'message')
     ordering = ('-date_created',)
 
 

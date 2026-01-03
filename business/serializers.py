@@ -9,7 +9,7 @@ from decimal import Decimal
 import re
 # ServiceRequest serializer for file upload and validation
 from .models import ServiceRequest
-from .models import Order, Testimonial, ContactMessage, Payment, Notification, PayPalPayment
+from .models import Order, Testimonial, Payment, Notification, PayPalPayment
 from .utils import (
     generate_order_number, calculate_order_total, 
     validate_payment_method, send_order_confirmation_email
@@ -129,67 +129,6 @@ class ServiceRequestSerializer(serializers.ModelSerializer):
 
 
 
-class ContactMessageSerializer(serializers.ModelSerializer):
-    """
-    Serializer for contact form submissions with enhanced validation
-    """
-    
-    class Meta:
-        model = ContactMessage
-        fields = [
-            'id', 'name', 'email', 'phone', 'subject', 'message',
-            'source', 'is_read', 'replied', 'priority', 'date_created'
-        ]
-        read_only_fields = ['id', 'is_read', 'replied', 'date_created']
-    
-    def validate_name(self, value):
-        """Validate name field"""
-        if len(value.strip()) < 2:
-            raise serializers.ValidationError("Name must be at least 2 characters long.")
-        
-        # Check for valid characters (letters, spaces, hyphens, apostrophes)
-        if not re.match(r"^[a-zA-Z\s\-']+$", value.strip()):
-            raise serializers.ValidationError("Name can only contain letters, spaces, hyphens, and apostrophes.")
-        
-        return value.strip().title()
-    
-    def validate_phone(self, value):
-        """Validate phone number format"""
-        if value:
-            # Remove all non-digit characters
-            cleaned_phone = re.sub(r'\D', '', value)
-            
-            # Check if it's a valid Kenyan number format
-            if cleaned_phone.startswith('254'):
-                if len(cleaned_phone) != 12:
-                    raise serializers.ValidationError("Invalid Kenyan phone number format.")
-            elif cleaned_phone.startswith('0'):
-                if len(cleaned_phone) != 10:
-                    raise serializers.ValidationError("Invalid phone number format.")
-                # Convert to international format
-                cleaned_phone = '254' + cleaned_phone[1:]
-            else:
-                if len(cleaned_phone) < 10 or len(cleaned_phone) > 15:
-                    raise serializers.ValidationError("Invalid phone number format.")
-            
-            return '+' + cleaned_phone
-        return value
-    
-    def validate_message(self, value):
-        """Validate message content"""
-        if len(value.strip()) < 10:
-            raise serializers.ValidationError("Message must be at least 10 characters long.")
-        
-        if len(value.strip()) > 2000:
-            raise serializers.ValidationError("Message cannot exceed 2000 characters.")
-        
-        return value.strip()
-    
-    def validate_subject(self, value):
-        """Validate subject field"""
-        if value and len(value.strip()) > 255:
-            raise serializers.ValidationError("Subject cannot exceed 255 characters.")
-        return value.strip() if value else ""
 
 
 class TestimonialCreateSerializer(serializers.ModelSerializer):
@@ -272,7 +211,7 @@ class PaymentSerializer(serializers.ModelSerializer):
     """
     Serializer for payment records with validation
     """
-    order_number = serializers.CharField(source='order.id', read_only=True)
+    order_number = serializers.CharField(source='order.order_number', read_only=True)
     client_name = serializers.CharField(source='order.client.full_name', read_only=True)
     # Alias backend field date_created to created_at for frontend compatibility
     created_at = serializers.DateTimeField(source='date_created', read_only=True)
@@ -455,15 +394,17 @@ class OrderListSerializer(serializers.ModelSerializer):
     """
     client_name = serializers.CharField(source='client.full_name', read_only=True)
     client_email = serializers.CharField(source='client.email', read_only=True)
-    service_name = serializers.CharField(source='service.name', read_only=True)
-    product_name = serializers.CharField(source='product.name', read_only=True)
-    pricing_tier_name = serializers.CharField(source='pricing_tier.name', read_only=True)
+    service_name = serializers.CharField(source='service.name', read_only=True, allow_null=True, default=None)
+    product_name = serializers.CharField(source='product.name', read_only=True, allow_null=True, default=None)
+    pricing_tier_name = serializers.CharField(source='pricing_tier.name', read_only=True, allow_null=True, default=None)
     payment_count = serializers.SerializerMethodField()
     total_paid = serializers.SerializerMethodField()
     attachment_count = serializers.SerializerMethodField()
     work_result_count = serializers.SerializerMethodField()
     message_thread = serializers.SerializerMethodField()
     unread_messages = serializers.SerializerMethodField()
+    assigned_partner_info = serializers.SerializerMethodField()
+    deadline_status = serializers.SerializerMethodField()
     
     class Meta:
         model = Order
@@ -471,8 +412,31 @@ class OrderListSerializer(serializers.ModelSerializer):
             'id', 'client_name', 'client_email', 'service_name', 'product_name',
             'pricing_tier_name', 'total_amount', 'currency', 'status', 'payment_status',
             'payment_count', 'total_paid', 'attachment_count', 'work_result_count', 
-            'message_thread', 'unread_messages', 'due_date', 'date_created'
+            'message_thread', 'unread_messages', 'assigned_partner_info', 'deadline_status',
+            'due_date', 'date_created'
         ]
+    
+    def get_assigned_partner_info(self, obj):
+        """Get assigned partner/agent information"""
+        if obj.assigned_partner:
+            return {
+                'id': obj.assigned_partner.id,
+                'name': obj.assigned_partner.user.full_name,
+                'email': obj.assigned_partner.user.email,
+                'phone': obj.assigned_partner.user.phone,
+                'professional_title': obj.assigned_partner.professional_title,
+                'professional_summary': obj.assigned_partner.professional_summary,
+            }
+        return None
+    
+    def get_deadline_status(self, obj):
+        """Get deadline status with user timezone"""
+        # Get user timezone from request context if available
+        request = self.context.get('request')
+        user_timezone = 'UTC'
+        if request and hasattr(request.user, 'timezone'):
+            user_timezone = request.user.timezone or 'UTC'
+        return obj.get_deadline_status(user_timezone)
     
     def get_payment_count(self, obj):
         """Get number of payments for this order"""
@@ -494,17 +458,14 @@ class OrderListSerializer(serializers.ModelSerializer):
     
     def get_message_thread(self, obj):
         """Get the order's message thread ID"""
-        message = obj.messages.filter(message_type='order').first()
+        message = obj.order_messages.filter(message_type='order').first()
         return message.id if message else None
     
     def get_unread_messages(self, obj):
         """Count unread messages in order thread"""
-        message = obj.messages.filter(message_type='order').first()
-        if not message:
-            return 0
-        # TODO: Implement proper unread tracking with user FK on MessageReply
-        # For now, return total reply count
-        return message.message_replies.count()
+        # Replies feature has been removed
+        # TODO: Implement proper unread message tracking if needed
+        return 0
 
 
 class OrderDetailSerializer(serializers.ModelSerializer):
@@ -515,23 +476,56 @@ class OrderDetailSerializer(serializers.ModelSerializer):
     service_details = serializers.SerializerMethodField()
     product_details = serializers.SerializerMethodField()
     pricing_tier_details = serializers.SerializerMethodField()
+    # Add simple name fields for frontend compatibility
+    client_name = serializers.CharField(source='client.full_name', read_only=True)
+    client_email = serializers.CharField(source='client.email', read_only=True)
+    service_name = serializers.CharField(source='service.name', read_only=True, allow_null=True, default=None)
+    product_name = serializers.CharField(source='product.name', read_only=True, allow_null=True, default=None)
+    pricing_tier_name = serializers.CharField(source='pricing_tier.name', read_only=True, allow_null=True, default=None)
     payments = PaymentSerializer(many=True, read_only=True)
     payment_summary = serializers.SerializerMethodField()
     file_attachments = serializers.SerializerMethodField()
     work_results = serializers.SerializerMethodField()
     message_thread = serializers.SerializerMethodField()
     unread_messages = serializers.SerializerMethodField()
+    assigned_partner_info = serializers.SerializerMethodField()
+    deadline_status = serializers.SerializerMethodField()
     
     class Meta:
         model = Order
         fields = [
-            'id', 'client_details', 'service_details', 'product_details',
-            'pricing_tier_details', 'total_amount', 'currency', 'status',
+            'id', 'client_name', 'client_email', 'client_details', 
+            'service_name', 'product_name', 'pricing_tier_name',
+            'service_details', 'product_details', 'pricing_tier_details', 
+            'total_amount', 'currency', 'status',
             'payment_status', 'payment_method', 'transaction_id', 'notes',
             'due_date', 'payments', 'payment_summary', 'file_attachments', 
             'work_results', 'message_thread', 'unread_messages',
+            'assigned_partner_info', 'deadline_status',
             'date_created', 'date_updated'
         ]
+    
+    def get_assigned_partner_info(self, obj):
+        """Get assigned partner/agent information"""
+        if obj.assigned_partner:
+            return {
+                'id': obj.assigned_partner.id,
+                'name': obj.assigned_partner.user.full_name,
+                'email': obj.assigned_partner.user.email,
+                'phone': obj.assigned_partner.user.phone,
+                'professional_title': obj.assigned_partner.professional_title,
+                'professional_summary': obj.assigned_partner.professional_summary,
+                'avatar': obj.assigned_partner.user.profile_img if hasattr(obj.assigned_partner.user, 'profile_img') else None,
+            }
+        return None
+    
+    def get_deadline_status(self, obj):
+        """Get deadline status with user timezone"""
+        request = self.context.get('request')
+        user_timezone = 'UTC'
+        if request and hasattr(request.user, 'timezone'):
+            user_timezone = request.user.timezone or 'UTC'
+        return obj.get_deadline_status(user_timezone)
     
     def get_client_details(self, obj):
         """Get client information"""
@@ -629,17 +623,14 @@ class OrderDetailSerializer(serializers.ModelSerializer):
     
     def get_message_thread(self, obj):
         """Get the order's message thread ID"""
-        message = obj.messages.filter(message_type='order').first()
+        message = obj.order_messages.filter(message_type='order').first()
         return message.id if message else None
     
     def get_unread_messages(self, obj):
         """Count unread messages in order thread"""
-        message = obj.messages.filter(message_type='order').first()
-        if not message:
-            return 0
-        # TODO: Implement proper unread tracking with user FK on MessageReply
-        # For now, return total reply count
-        return message.message_replies.count()
+        # Replies feature has been removed
+        # TODO: Implement proper unread message tracking if needed
+        return 0
 
 
 class NotificationSerializer(serializers.ModelSerializer):

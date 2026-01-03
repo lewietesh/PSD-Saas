@@ -1,5 +1,5 @@
 import django_filters
-from .models import Order, ContactMessage, Testimonial
+from .models import Order, Testimonial
 
 class OrderFilter(django_filters.FilterSet):
     status = django_filters.CharFilter(lookup_expr='iexact')
@@ -9,16 +9,6 @@ class OrderFilter(django_filters.FilterSet):
     class Meta:
         model = Order
         fields = ['status', 'client', 'service', 'date_created']
-
-
-class ContactMessageFilter(django_filters.FilterSet):
-    is_read = django_filters.BooleanFilter()
-    replied = django_filters.BooleanFilter()
-    priority = django_filters.ChoiceFilter(choices=[('low', 'Low'), ('medium', 'Medium'), ('high', 'High')])
-
-    class Meta:
-        model = ContactMessage
-        fields = ['is_read', 'replied', 'priority', 'date_created']
 
 
 class TestimonialFilter(django_filters.FilterSet):

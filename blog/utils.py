@@ -2,6 +2,65 @@
 from django.utils.text import slugify
 from django.core.exceptions import ValidationError
 import re
+import bleach
+
+
+# Allowed HTML tags for rich text content
+ALLOWED_TAGS = [
+    'p', 'br', 'hr',
+    'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+    'strong', 'b', 'em', 'i', 'u', 's', 'strike', 'del', 'ins',
+    'a', 'img',
+    'ul', 'ol', 'li',
+    'blockquote', 'q', 'cite',
+    'pre', 'code',
+    'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td', 'caption',
+    'div', 'span',
+    'figure', 'figcaption',
+    'video', 'source', 'iframe',
+    'sub', 'sup',
+    'abbr', 'address',
+    'mark', 'small',
+]
+
+ALLOWED_ATTRIBUTES = {
+    '*': ['class', 'id', 'style', 'title'],
+    'a': ['href', 'target', 'rel', 'name'],
+    'img': ['src', 'alt', 'width', 'height', 'loading'],
+    'iframe': ['src', 'width', 'height', 'frameborder', 'allowfullscreen', 'allow'],
+    'video': ['src', 'controls', 'autoplay', 'loop', 'muted', 'poster', 'width', 'height'],
+    'source': ['src', 'type'],
+    'code': ['class'],  # For language classes like "language-python"
+    'pre': ['class'],
+    'td': ['colspan', 'rowspan'],
+    'th': ['colspan', 'rowspan', 'scope'],
+    'ol': ['start', 'type', 'reversed'],
+}
+
+
+def sanitize_html(content):
+    """
+    Sanitize HTML content to prevent XSS attacks while preserving rich text formatting
+    
+    Args:
+        content (str): Raw HTML content from CKEditor
+    
+    Returns:
+        str: Sanitized HTML content
+    """
+    if not content:
+        return ''
+    
+    # Clean the HTML using bleach
+    cleaned = bleach.clean(
+        content,
+        tags=ALLOWED_TAGS,
+        attributes=ALLOWED_ATTRIBUTES,
+        strip=True,
+        strip_comments=True,
+    )
+    
+    return cleaned
 
 
 def generate_unique_slug(model_class, title, instance=None):

@@ -1,0 +1,536 @@
+{% extends "admin/change_form.html" %}
+{% load static %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+    /* Chat Container Styles */
+    .chat-container {
+        width: 100%;
+        background: white;
+        border-radius: 8px;
+        overflow: hidden;
+        margin-bottom: 20px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .chat-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .chat-header h2 {
+        margin: 0;
+        font-size: 20px;
+        font-weight: 600;
+    }
+
+    .chat-user-info {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        background: rgba(255,255,255,0.1);
+        padding: 10px 15px;
+        border-radius: 8px;
+    }
+
+    .chat-user-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        color: #667eea;
+    }
+
+    .chat-messages-area {
+        padding: 20px;
+        max-height: 500px;
+        overflow-y: auto;
+        background: #f8f9fa;
+    }
+
+    .message-item {
+        margin-bottom: 20px;
+        display: flex;
+        gap: 12px;
+    }
+
+    .message-item.user-message {
+        flex-direction: row-reverse;
+    }
+    
+    .message-item.current-message {
+        position: relative;
+    }
+    
+    .message-item.current-message::before {
+        content: '';
+        position: absolute;
+        left: -10px;
+        right: -10px;
+        top: -5px;
+        bottom: -5px;
+        background: rgba(102, 126, 234, 0.08);
+        border-radius: 12px;
+        border: 2px dashed #667eea;
+        pointer-events: none;
+    }
+
+    .message-avatar {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 14px;
+        flex-shrink: 0;
+    }
+
+    .message-item.user-message .message-avatar {
+        background: #667eea;
+        color: white;
+    }
+
+    .message-item.support-message .message-avatar {
+        background: #10b981;
+        color: white;
+    }
+
+    .message-bubble {
+        max-width: 70%;
+        padding: 12px 16px;
+        border-radius: 12px;
+        position: relative;
+    }
+
+    .message-item.user-message .message-bubble {
+        background: #667eea;
+        color: white;
+        border-bottom-right-radius: 4px;
+    }
+
+    .message-item.support-message .message-bubble {
+        background: white;
+        color: #333;
+        border-bottom-left-radius: 4px;
+        border: 1px solid #e5e7eb;
+    }
+
+    .message-sender {
+        font-weight: 600;
+        font-size: 13px;
+        margin-bottom: 4px;
+    }
+
+    .message-item.user-message .message-sender {
+        color: rgba(255,255,255,0.9);
+    }
+
+    .message-item.support-message .message-sender {
+        color: #10b981;
+    }
+
+    .message-content {
+        font-size: 14px;
+        line-height: 1.5;
+        margin-bottom: 6px;
+    }
+
+    .message-time {
+        font-size: 11px;
+        opacity: 0.7;
+    }
+
+    .details-section {
+        background: white;
+        padding: 20px;
+        border-top: 1px solid #e5e7eb;
+    }
+
+    .details-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+    }
+
+    .detail-card {
+        background: #f8f9fa;
+        padding: 12px;
+        border-radius: 6px;
+        border-left: 3px solid #667eea;
+    }
+
+    .detail-label {
+        font-size: 11px;
+        color: #6b7280;
+        text-transform: uppercase;
+        font-weight: 600;
+        margin-bottom: 4px;
+    }
+
+    .detail-value {
+        font-size: 14px;
+        color: #111827;
+        font-weight: 500;
+    }
+
+    .badge {
+        display: inline-block;
+        padding: 3px 10px;
+        border-radius: 10px;
+        font-size: 11px;
+        font-weight: 600;
+    }
+
+    .badge-order { background: #dbeafe; color: #1e40af; }
+    .badge-general { background: #d1fae5; color: #065f46; }
+    .badge-read { background: #d1fae5; color: #065f46; }
+    .badge-unread { background: #fed7aa; color: #92400e; }
+
+    .no-attachments {
+        text-align: center;
+        padding: 30px;
+        background: #fffbeb;
+        border-radius: 6px;
+        border: 2px dashed #fbbf24;
+    }
+
+    .attachments-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: 12px;
+    }
+
+    .attachment-card {
+        background: #f8f9fa;
+        padding: 12px;
+        border-radius: 6px;
+        border: 1px solid #e5e7eb;
+    }
+
+    .section-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: #111827;
+        margin-bottom: 12px;
+    }
+
+    /* Hide the default inline admin styling for cleaner look */
+    .inline-group {
+        margin-top: 20px;
+        background: #f0f9ff;
+        border-radius: 8px;
+        padding: 15px;
+        border: 2px solid #667eea;
+    }
+    
+    .inline-group h2 {
+        color: #667eea;
+        font-size: 16px;
+    }
+    
+    /* Ensure reply textarea is visible */
+    .inline-group .form-row {
+        display: block !important;
+        padding: 10px 0;
+    }
+    
+    .inline-group .form-row .field-reply_content,
+    .inline-group .form-row .field-is_read {
+        display: block !important;
+    }
+    
+    .inline-group .fieldBox {
+        display: block !important;
+    }
+    
+    .inline-group textarea {
+        width: 100% !important;
+        min-height: 120px !important;
+        padding: 12px !important;
+        border: 1px solid #d1d5db !important;
+        border-radius: 6px !important;
+        font-size: 14px !important;
+        resize: vertical !important;
+        display: block !important;
+    }
+    
+    .inline-group textarea:focus {
+        border-color: #667eea !important;
+        outline: none !important;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1) !important;
+    }
+    
+    .inline-group label {
+        display: block !important;
+        font-weight: 600;
+        margin-bottom: 8px;
+        color: #374151;
+    }
+    
+    .inline-group .inline-related {
+        margin-bottom: 15px;
+        padding: 15px;
+        background: white;
+        border-radius: 6px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Custom Chat Display -->
+<div class="chat-container">
+    <div class="chat-header">
+        <h2>💬 Message Conversation</h2>
+        <div class="chat-user-info">
+            <div class="chat-user-avatar">
+                {% if original.user %}{{ original.user.email|slice:":1"|upper }}{% elif original.session_id %}A{% else %}?{% endif %}
+            </div>
+            <div>
+                <div style="font-weight: 600;">
+                    {% if original.user %}{{ original.user.email }}{% elif original.session_id %}Anonymous{% else %}Unknown{% endif %}
+                </div>
+                {% if original.user.first_name %}
+                <div style="font-size: 12px; opacity: 0.9;">
+                    {{ original.user.first_name }} {{ original.user.last_name }}
+                </div>
+                {% elif original.session_id %}
+                <div style="font-size: 12px; opacity: 0.9;">
+                    Session: {{ original.session_id|slice:":8" }}...
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="chat-messages-area" id="messageThread">
+        <!-- All Messages in Conversation (Chronological Order) -->
+        {% for msg in original.conversation.messages.all %}
+            <div class="message-item {% if msg.sender == 'support' %}support-message{% else %}user-message{% endif %} {% if msg.id == original.id %}current-message{% endif %}">
+                <div class="message-avatar">
+                    {% if msg.sender == 'support' %}
+                        👨‍💼
+                    {% elif msg.user %}
+                        {{ msg.user.email|slice:":1"|upper }}
+                    {% elif msg.session_id %}
+                        A
+                    {% else %}
+                        ?
+                    {% endif %}
+                </div>
+                <div class="message-bubble">
+                    <div class="message-sender">
+                        {% if msg.sender == 'support' %}
+                            Support{% if msg.user %} ({{ msg.user.email }}){% endif %}
+                        {% elif msg.user %}
+                            {{ msg.user.email }}
+                        {% elif msg.session_id %}
+                            Anonymous
+                        {% else %}
+                            User
+                        {% endif %}
+                    </div>
+                    <div class="message-content">
+                        {{ msg.content|default:"(No content)"|linebreaksbr }}
+                    </div>
+                    <div class="message-time">
+                        {{ msg.created_at|date:"M d, Y g:i A" }}
+                        {% if msg.id == original.id %}<span style="margin-left: 8px; font-weight: bold;">(Current)</span>{% endif %}
+                    </div>
+                </div>
+            </div>
+        {% empty %}
+        <div style="text-align: center; padding: 20px; color: #6b7280;">
+            <em>No messages in this conversation yet.</em>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Message Details -->
+    <div class="details-section">
+        <div class="section-title">📋 Message Details</div>
+        <div class="details-grid">
+            <div class="detail-card">
+                <div class="detail-label">Type</div>
+                <div class="detail-value">
+                    <span class="badge badge-{{ original.message_type }}">{{ original.get_message_type_display }}</span>
+                </div>
+            </div>
+            <div class="detail-card">
+                <div class="detail-label">Status</div>
+                <div class="detail-value">
+                    <span class="badge {% if original.is_read %}badge-read{% else %}badge-unread{% endif %}">
+                        {% if original.is_read %}✅ Read{% else %}⭕ Unread{% endif %}
+                    </span>
+                </div>
+            </div>
+            <div class="detail-card">
+                <div class="detail-label">Order</div>
+                <div class="detail-value">
+                    {% if original.order %}#{{ original.order.id|slice:":8" }}{% else %}None{% endif %}
+                </div>
+            </div>
+            <div class="detail-card">
+                <div class="detail-label">Created</div>
+                <div class="detail-value">{{ original.created_at|date:"M d, Y g:i A" }}</div>
+            </div>
+            <div class="detail-card">
+                <div class="detail-label">Messages</div>
+                <div class="detail-value">{{ original.conversation.messages.count }}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Attachments -->
+    <div class="details-section">
+        <div class="section-title">📎 Attachments</div>
+        {% if original.attachments.all %}
+        <div class="attachments-grid">
+            {% for att in original.attachments.all %}
+            <div class="attachment-card">
+                <div style="font-size: 24px;">📄</div>
+                <div style="font-size: 13px; font-weight: 500;">{{ att.original_filename }}</div>
+                <div style="font-size: 11px; color: #666;">{{ att.file_size|filesizeformat }}</div>
+                <a href="{{ att.file.url }}" target="_blank" style="font-size: 12px; color: #667eea;">Download</a>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="no-attachments">
+            <div style="font-size: 32px;">📭</div>
+            <div style="color: #92400e; font-weight: 500;">No attachments</div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- CUSTOM REPLY FORM - Direct in page -->
+    <div class="details-section" style="background: #f0f9ff; border: 2px solid #667eea; border-radius: 8px; margin-top: 15px;">
+        <div class="section-title" style="color: #667eea;">✍️ Write Your Reply</div>
+        
+        <form id="replyForm" method="post" action="{% url 'admin_quick_reply' %}">
+            {% csrf_token %}
+            <input type="hidden" name="message_id" value="{{ original.id }}">
+            
+            <div style="margin-bottom: 15px;">
+                <textarea 
+                    id="replyContent"
+                    name="reply_content" 
+                    placeholder="Type your reply here... Be helpful and professional."
+                    required
+                    style="width: 100%; min-height: 150px; padding: 15px; border: 2px solid #d1d5db; border-radius: 8px; font-size: 15px; font-family: inherit; line-height: 1.6; resize: vertical; transition: border-color 0.2s, box-shadow 0.2s;"
+                ></textarea>
+            </div>
+            
+            <div style="display: flex; gap: 15px;">
+                <button type="submit" id="sendReplyBtn" style="padding: 12px 24px; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; border: none; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; display: inline-flex; align-items: center; gap: 8px;">
+                    📤 Send Reply
+                </button>
+                <span id="replyStatus" style="display: none; padding: 12px; font-size: 14px;"></span>
+            </div>
+        </form>
+        
+        <p style="margin-top: 15px; font-size: 13px; color: #666;">
+            💡 <strong>Tip:</strong> Your reply will be sent as "Support" and the user will be notified.
+        </p>
+    </div>
+</div>
+
+<!-- Use Django's default form handling - this is critical for POST to work -->
+{{ block.super }}
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Scroll to bottom of messages
+    const messageThread = document.getElementById('messageThread');
+    if (messageThread) {
+        messageThread.scrollTop = messageThread.scrollHeight;
+    }
+    
+    // Handle reply form submission via AJAX
+    const replyForm = document.getElementById('replyForm');
+    const replyContent = document.getElementById('replyContent');
+    const sendBtn = document.getElementById('sendReplyBtn');
+    const statusEl = document.getElementById('replyStatus');
+    
+    if (replyForm) {
+        replyForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const content = replyContent.value.trim();
+            if (!content) {
+                showStatus('Please enter a reply message.', 'error');
+                return;
+            }
+            
+            // Disable button during submission
+            sendBtn.disabled = true;
+            sendBtn.innerHTML = '⏳ Sending...';
+            
+            // Get CSRF token
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            const messageId = document.querySelector('[name=message_id]').value;
+            
+            fetch('{% url "admin_quick_reply" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({
+                    message_id: messageId,
+                    reply_content: content
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showStatus('✅ Reply sent successfully! Refreshing...', 'success');
+                    replyContent.value = '';
+                    // Reload page to show new reply
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
+                } else {
+                    showStatus('❌ Error: ' + (data.error || 'Unknown error'), 'error');
+                    sendBtn.disabled = false;
+                    sendBtn.innerHTML = '📤 Send Reply';
+                }
+            })
+            .catch(error => {
+                showStatus('❌ Network error. Please try again.', 'error');
+                sendBtn.disabled = false;
+                sendBtn.innerHTML = '📤 Send Reply';
+            });
+        });
+    }
+    
+    function showStatus(message, type) {
+        statusEl.style.display = 'inline-block';
+        statusEl.textContent = message;
+        statusEl.style.color = type === 'error' ? '#dc3545' : '#28a745';
+    }
+    
+    // Focus styling for textarea
+    if (replyContent) {
+        replyContent.addEventListener('focus', function() {
+            this.style.borderColor = '#667eea';
+            this.style.boxShadow = '0 0 0 3px rgba(102, 126, 234, 0.2)';
+        });
+        replyContent.addEventListener('blur', function() {
+            this.style.borderColor = '#d1d5db';
+            this.style.boxShadow = 'none';
+        });
+    }
+});
+</script>
+{% endblock %}

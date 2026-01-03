@@ -10,7 +10,7 @@ from django.db.models import Sum, Count, Avg, Q
 from django.utils import timezone
 from django.core.cache import cache
 
-from .models import Order, Payment, Notification, ContactMessage, Testimonial
+from .models import Order, Payment, Notification, Testimonial
 from django.template.loader import render_to_string
 
 
@@ -584,6 +584,7 @@ def get_pending_contact_messages(limit=None):
     """
     Get pending contact messages that need attention
     """
+    from notifications.models import ContactMessage
     queryset = ContactMessage.objects.filter(
         is_read=False,
         replied=False
@@ -626,6 +627,7 @@ def check_duplicate_contact(email, phone=None, hours=24):
     """
     Check if contact message is duplicate within specified hours
     """
+    from notifications.models import ContactMessage
     time_threshold = timezone.now() - timedelta(hours=hours)
     
     query = Q(email=email, date_created__gte=time_threshold)
@@ -744,6 +746,7 @@ def get_order_conversion_funnel():
     """
     Calculate conversion rates through the order process
     """
+    from notifications.models import ContactMessage
     # Contact messages (top of funnel)
     total_contacts = ContactMessage.objects.count()
     
@@ -797,6 +800,7 @@ def get_dashboard_metrics():
     month_ago = today - timedelta(days=30)
     
     # Today's metrics
+    from notifications.models import ContactMessage
     today_orders = Order.objects.filter(date_created__date=today)
     today_contacts = ContactMessage.objects.filter(date_created__date=today)
     

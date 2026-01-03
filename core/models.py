@@ -1,11 +1,12 @@
 # core/models.py
+import uuid
+import os
 from django.db import models
 from django.utils import timezone
 from django.core.validators import MinValueValidator, MaxValueValidator, FileExtensionValidator
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 import datetime
-import os
 
 User = get_user_model()
 

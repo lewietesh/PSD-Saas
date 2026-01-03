@@ -6,8 +6,23 @@ from django.utils.safestring import mark_safe
 from django.db.models import Count
 from django.db import models
 from django import forms
+from django_ckeditor_5.widgets import CKEditor5Widget
 from .models import Tag, BlogPost, BlogComment, BlogPostTag
 from accounts.admin import BaseAdminPermissions
+
+
+class BlogPostAdminForm(forms.ModelForm):
+    """Custom form for BlogPost admin with CKEditor 5"""
+    content = forms.CharField(
+        widget=CKEditor5Widget(config_name='extends')
+    )
+    
+    class Meta:
+        model = BlogPost
+        fields = '__all__'
+        widgets = {
+            'excerpt': forms.Textarea(attrs={'rows': 4, 'cols': 80}),
+        }
 
 
 @admin.register(Tag)
@@ -75,6 +90,8 @@ class BlogPostAdmin(BaseAdminPermissions):
     Admin interface for BlogPost model
     """
     
+    form = BlogPostAdminForm  # Use custom form with CKEditor 5
+    
     list_display = [
         'title', 
         'author', 
@@ -107,10 +124,7 @@ class BlogPostAdmin(BaseAdminPermissions):
         'image_preview'
     ]
     
-    # Custom form field for larger excerpt textarea
-    formfield_overrides = {
-        models.TextField: {'widget': forms.Textarea(attrs={'rows': 6, 'cols': 80})},
-    }
+    # Removed formfield_for_dbfield - using custom form instead
     
     # Removed filter_horizontal for tags since it has a through model
     inlines = [BlogPostTagInline, BlogCommentInline]  # Added BlogPostTagInline
@@ -120,7 +134,8 @@ class BlogPostAdmin(BaseAdminPermissions):
             'fields': ('title', 'slug', 'author', 'category')
         }),
         ('Content', {
-            'fields': ('excerpt', 'content', 'featured_image', 'image_preview')
+            'fields': ('excerpt', 'content', 'featured_image', 'image_preview'),
+            'classes': ('wide',),  # Give content field more space
         }),
         ('Publishing', {
             'fields': ('status', 'date_published', 'featured'),
@@ -252,11 +267,13 @@ class BlogCommentAdmin(BaseAdminPermissions):
         'blogpost_title',
         'message_preview',
         'approved_display',
+        'featured_display',
         'is_reply_display',
         'date_created'
     ]
     list_filter = [
-        'approved', 
+        'approved',
+        'featured',
         'date_created',
         'blogpost__category',
         CommentTypeFilter,  # Using custom filter instead of 'parent__isnull'
@@ -284,7 +301,7 @@ class BlogCommentAdmin(BaseAdminPermissions):
             'classes': ('collapse',)
         }),
         ('Moderation', {
-            'fields': ('approved',)
+            'fields': ('approved', 'featured')
         }),
         ('Metadata', {
             'fields': ('id', 'date_created'),
@@ -312,6 +329,13 @@ class BlogCommentAdmin(BaseAdminPermissions):
         return format_html('<span style="color: red;">✗ Pending</span>')
     approved_display.short_description = 'Status'
     
+    def featured_display(self, obj):
+        """Display featured status with icon"""
+        if obj.featured:
+            return format_html('<span style="color: gold;">⭐ Featured</span>')
+        return '-'
+    featured_display.short_description = 'Featured'
+    
     def is_reply_display(self, obj):
         """Show if comment is a reply"""
         return obj.parent is not None
@@ -337,7 +361,7 @@ class BlogCommentAdmin(BaseAdminPermissions):
         return 'Top-level comment'
     parent_comment_link.short_description = 'Parent Comment'
     
-    actions = ['approve_comments', 'reject_comments', 'delete_spam']
+    actions = ['approve_comments', 'reject_comments', 'feature_comments', 'unfeature_comments', 'delete_spam']
     
     def approve_comments(self, request, queryset):
         """Approve selected comments"""
@@ -350,6 +374,18 @@ class BlogCommentAdmin(BaseAdminPermissions):
         updated = queryset.update(approved=False)
         self.message_user(request, f"Successfully rejected {updated} comment(s).")
     reject_comments.short_description = "Reject selected comments"
+    
+    def feature_comments(self, request, queryset):
+        """Feature selected comments"""
+        updated = queryset.update(featured=True)
+        self.message_user(request, f"Successfully featured {updated} comment(s).")
+    feature_comments.short_description = "⭐ Feature selected comments"
+    
+    def unfeature_comments(self, request, queryset):
+        """Remove featured flag from selected comments"""
+        updated = queryset.update(featured=False)
+        self.message_user(request, f"Successfully unfeatured {updated} comment(s).")
+    unfeature_comments.short_description = "Unfeature selected comments"
     
     def delete_spam(self, request, queryset):
         """Delete selected comments (for spam)"""
